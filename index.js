@@ -1,7 +1,7 @@
 // index.js
 // 📱 LiamBot WhatsApp bot core — command loader and message handler
 
-const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState } = require('@adiwajshing/baileys');
 const P = require('pino');
 const fs = require('fs');
 const path = require('path');
