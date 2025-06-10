@@ -1,7 +1,7 @@
 // commands/casino.js
 // 📦 LiamBot Casino Commands — Full implementation
 
-const memory = require("../memory");
+const memory = require("./memory");
 
 // 📌 Helper: Random integer between min and max (inclusive)
 function randInt(min, max) {
