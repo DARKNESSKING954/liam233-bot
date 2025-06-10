@@ -9,7 +9,7 @@
   "author": "Liam Arendsen",
   "license": "MIT",
   "dependencies": {
-    "@whiskeysockets/baileys": "^5.0.0",
+    "@adiwajshing/baileys": "^5.0.0",
     "pino": "^8.0.0"
   },
   "engines": {
