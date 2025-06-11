@@ -5,7 +5,7 @@ import path from 'path';
 import { tmpdir } from 'os';
 import { v4 as uuidv4 } from 'uuid';
 
-const TENOR_API_KEY = 'LIVDSRZULELA';
+const TENOR_API_KEY = 'AIzaSyAym2Nnhn3O2FvwfFOrGVyY-LqCOZJyXsI';
 const emotions = [
   'kiss', 'slap', 'hug', 'poke', 'cuddle',
   'pat', 'bite', 'dance', 'cry', 'laugh',
