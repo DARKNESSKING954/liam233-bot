@@ -1,17 +1,19 @@
-// coinStorage.js (root folder)
+// coinStorage.js
 
 const coinMap = new Map();
 
-export function getWallet(userId) {
-  return coinMap.get(userId) || 0;
+export function getWallet(user) {
+  return coinMap.get(user) || 0;
 }
 
-export function addCoins(userId, amount) {
-  const current = coinMap.get(userId) || 0;
-  coinMap.set(userId, current + amount);
+export function addCoins(user, amount) {
+  const current = getWallet(user);
+  coinMap.set(user, current + amount);
 }
 
-export function removeCoins(userId, amount) {
-  const current = coinMap.get(userId) || 0;
-  coinMap.set(userId, Math.max(0, current - amount));
-                              }
+export function removeCoins(user, amount) {
+  const current = getWallet(user);
+  if (current < amount) return false;
+  coinMap.set(user, current - amount);
+  return true;
+              }
