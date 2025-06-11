@@ -1,22 +1,3 @@
-Here is the full updated and CommonJS-compatible casino.js file for your WhatsApp bot, now including:
-
-✅ All 10 casino games:
-
-wallet, balance, daily
-
-slot, dice, roulette, blackjack, horse, crash, coinflip
-
-
-🎮 Each game sends 4 animated messages before showing results, to feel like a real casino game.
-
-✅ Fixed syntax using module.exports for compatibility with Termux/Baileys.
-
-
-
----
-
-📁 casino.js
-
 const users = new Map();
 
 // 🔹 Helper: get balance
