@@ -22,8 +22,7 @@ async function horse(sock, msg, args) {
   if (bet > balance)
     return sock.sendMessage(from, { text: '❌ Not enough coins.' });
 
-  await sock.sendMessage(from, { text: '🐎 The horses are lining up at the start line...
-🏇 1 | 🏇 2 | 🏇 3 | 🏇 4 | 🏇 5' });
+  await sock.sendMessage(from, { text: '🐎 The horses are lining up at the start line... 1 2 3 4 5'});
   await sleep(1000);
   await sock.sendMessage(from, { text: '📢 The crowd roars as the gates open!' });
   await sleep(1000);
