@@ -1,4 +1,4 @@
-import memory from '../memory.js';
+import memory from './memory.js';
 
 // 📌 Helper: Random integer between min and max (inclusive)
 function randInt(min, max) {
