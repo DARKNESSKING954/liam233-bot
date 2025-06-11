@@ -1,4 +1,4 @@
-import { getWallet, addCoins, removeCoins } from './memory.js';
+import { getWallet, addCoins, removeCoins } from './coinStorage.js';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
