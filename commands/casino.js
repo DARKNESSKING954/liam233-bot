@@ -1,16 +1,8 @@
+import { getUserId, formatCoins, sleep } from './utils.js'; // Adjust if utils.js path differs
 import { getWallet, addCoins, removeCoins } from './coinStorage.js';
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function formatCoins(amount) {
-  return `💰 ${amount} coins`;
-}
-
-// 🐴 .horse <amount> <horseNumber>
 async function horse(sock, msg, args) {
-  const user = msg.participant || msg.key.participant || msg.key.remoteJid;
+  const user = getUserId(msg);
   const from = msg.key.remoteJid;
   const bet = parseInt(args[0]);
   const pick = parseInt(args[1]);
@@ -34,7 +26,8 @@ async function horse(sock, msg, args) {
     positions[advancingHorse] += 1;
 
     const visuals = positions.map((pos, index) => {
-      return '─'.repeat(pos) + `🏇 Horse ${index + 1}`;
+      const track = '─'.repeat(pos) + `🏇 Horse ${index + 1}`;
+      return track;
     }).join('\n');
 
     await sock.sendMessage(from, { text: `🏁 Race Update:\n\n${visuals}` });
@@ -64,23 +57,22 @@ async function horse(sock, msg, args) {
   }
 }
 
-// 🪙 .wallet
 async function wallet(sock, msg) {
-  const user = msg.participant || msg.key.participant || msg.key.remoteJid;
+  const user = getUserId(msg);
   const from = msg.key.remoteJid;
   const coins = getWallet(user);
   await sock.sendMessage(from, { text: `👛 Your wallet: ${formatCoins(coins)}` });
 }
 
-// 🎁 .daily
 const dailyClaimed = new Set();
 
 async function daily(sock, msg) {
-  const user = msg.participant || msg.key.participant || msg.key.remoteJid;
+  const user = getUserId(msg);
   const from = msg.key.remoteJid;
 
   if (dailyClaimed.has(user)) {
-    return sock.sendMessage(from, { text: '🕒 You already claimed your daily reward. Try again later.' });
+    await sock.sendMessage(from, { text: '🕒 You already claimed your daily reward. Try again later.' });
+    return;
   }
 
   const reward = 500;
