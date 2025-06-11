@@ -1,6 +1,6 @@
 // 📱 LiamBot WhatsApp bot core — command loader and message handler
 
-import makeWASocket, { useMultiFileAuthState, DisconnectReason } from 'baileys';
+import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
 import Pino from 'pino';
 import fs from 'fs';
 import path from 'path';
