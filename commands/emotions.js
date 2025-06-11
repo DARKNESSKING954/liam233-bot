@@ -1,7 +1,7 @@
 // commands/emotions.js
 import fetch from 'node-fetch';
 
-const TENOR_API_KEY = 'LIVDSRZULELA';
+const TENOR_API_KEY = 'AIzaSyAym2Nnhn3O2FvwfFOrGVyY-LqCOZJyXsI';
 
 async function getRandomGifUrl(emotion) {
   const res = await fetch(`https://tenor.googleapis.com/v2/search?q=${emotion}&key=${TENOR_API_KEY}&limit=10&media_filter=gif`);
