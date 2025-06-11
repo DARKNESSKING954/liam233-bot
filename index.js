@@ -7,6 +7,7 @@ import path from 'path';
 import QRCode from 'qrcode';
 import { fileURLToPath } from 'url';
 import { Boom } from '@hapi/boom';
+import { exec } from 'child_process';  // <-- Added here for opening QR image
 
 // 🛣️ Directory path helpers
 const __filename = fileURLToPath(import.meta.url);
@@ -44,13 +45,24 @@ async function startBot() {
 
     if (qr) {
       try {
-        console.log('Scan this QR code with WhatsApp:');
-        await QRCode.toString(qr, { type: 'terminal',small:true }, (err, url) => {
-          if (err) console.error('Failed to generate QR code:', err);
-          else console.log(url);
+        // Save QR code as a PNG file (smaller size)
+        await QRCode.toFile('qr.png', qr, {
+          width: 300,
+          margin: 2,
         });
+        console.log('QR code saved to qr.png. Please open this image and scan it with WhatsApp.');
+
+        // Automatically open the QR image depending on your OS
+        const platform = process.platform;
+        if (platform === 'win32') {
+          exec('start qr.png');
+        } else if (platform === 'darwin') {
+          exec('open qr.png');
+        } else if (platform === 'linux') {
+          exec('xdg-open qr.png');
+        }
       } catch (e) {
-        console.error('QR code generation error:', e);
+        console.error('Error generating QR code file:', e);
       }
     }
 
