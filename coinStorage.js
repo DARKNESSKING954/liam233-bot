@@ -1,16 +1,16 @@
 // coinStorage.js
 const coinMap = new Map();
 
-function getWallet(userId) {
+function getWallet(user) {
   return coinMap.get(userId) || 1000;
 }
 
-function addCoins(userId, amount) {
+function addCoins(user, amount) {
   const current = getWallet(userId);
   coinMap.set(userId, current + amount);
 }
 
-function removeCoins(userId, amount) {
+function removeCoins(user, amount) {
   const current = getWallet(userId);
   if (current >= amount) {
     coinMap.set(userId, current - amount);
