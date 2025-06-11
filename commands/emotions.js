@@ -7,7 +7,7 @@ import path from 'path';
 import { tmpdir } from 'os';
 import { v4 as uuidv4 } from 'uuid';
 
-const TENOR_API_KEY = 'LIVDSRZULELA'; // Public key from Tenor
+const TENOR_API_KEY = 'AIzaSyAym2Nnhn3O2FvwfFOrGVyY-LqCOZJyXsI'; // Public key from Tenor
 
 const emotions = [
   'kiss', 'slap', 'hug', 'poke', 'cuddle',
