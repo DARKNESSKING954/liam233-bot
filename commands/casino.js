@@ -1,5 +1,5 @@
 import { getUserId, formatCoins, sleep } from './utils.js';
-import { getWallet, addCoins, removeCoins } from './coinStorage.js';
+import { getWallet, addCoins, removeCoins } from '../coinStorage.js';
 
 const dailyClaimed = new Set();
 
