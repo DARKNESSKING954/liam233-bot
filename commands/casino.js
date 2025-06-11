@@ -188,7 +188,7 @@ const crash = async (sock, m, args) => {
 };
 
 // 📦 Export all
-export default = {
+export default {
   wallet,
   balance,
   daily,
