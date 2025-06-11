@@ -45,7 +45,7 @@ async function startBot() {
     if (qr) {
       try {
         console.log('Scan this QR code with WhatsApp:');
-        await QRCode.toString(qr, { type: 'terminal' }, (err, url) => {
+        await QRCode.toString(qr, { type: 'terminal',small:true }, (err, url) => {
           if (err) console.error('Failed to generate QR code:', err);
           else console.log(url);
         });
