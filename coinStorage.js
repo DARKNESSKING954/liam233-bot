@@ -1,22 +1,23 @@
 // coinStorage.js
+
 const coinMap = new Map();
 
-function getWallet(user) {
-  return coinMap.get(userId) || 1000;
-}
-
-function addCoins(user, amount) {
-  const current = getWallet(userId);
-  coinMap.set(userId, current + amount);
-}
-
-function removeCoins(user, amount) {
-  const current = getWallet(userId);
-  if (current >= amount) {
-    coinMap.set(userId, current - amount);
-    return true;
+// Always use the full JID like "user@s.whatsapp.net" — consistent with your bot
+export function getWallet(user) {
+  if (!coinMap.has(user)) {
+    coinMap.set(user, 1000); // Default starting coins
   }
-  return false;
+  return coinMap.get(user);
 }
 
-export { getWallet, addCoins, removeCoins, coinMap };
+export function addCoins(user, amount) {
+  const current = getWallet(user);
+  coinMap.set(user, current + amount);
+}
+
+export function removeCoins(user, amount) {
+  const current = getWallet(user);
+  if (current < amount) return false;
+  coinMap.set(user, current - amount);
+  return true;
+              }
