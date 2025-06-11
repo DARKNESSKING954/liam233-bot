@@ -1,6 +1,6 @@
 // 📦 LiamBot Emotional Reactions (Animated GIF-style MP4s via Tenor)
 import fetch from 'node-fetch';
-const TENOR_API_KEY = 'YOUR_TENOR_API_KEY'; // Replace with your actual Tenor API key
+const TENOR_API_KEY = 'AIzaSyAym2Nnhn3O2FvwfFOrGVyY-LqCOZJyXsI'; // Replace with your actual Tenor API key
 
 async function getRandomGifUrl(emotion) {
   const res = await fetch(`https://tenor.googleapis.com/v2/search?q=${emotion}&key=${TENOR_API_KEY}&limit=10&media_filter=gif`);
