@@ -1,7 +1,30 @@
 // memory.js
-// In-memory storage for user data: coins and FIFA cards.
+import fs from 'fs';
 
-const userData = {};
+const DATA_FILE = './data.json';
+let userData = {};
+
+// Load data from file on startup
+if (fs.existsSync(DATA_FILE)) {
+  try {
+    const raw = fs.readFileSync(DATA_FILE);
+    userData = JSON.parse(raw);
+    console.log('✅ User data loaded from file.');
+  } catch (err) {
+    console.error('❌ Failed to load user data:', err);
+  }
+}
+
+/**
+ * Save current user data to disk
+ */
+function saveData() {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(userData, null, 2));
+  } catch (err) {
+    console.error('❌ Failed to save user data:', err);
+  }
+}
 
 /**
  * Ensures user data exists
@@ -10,17 +33,16 @@ const userData = {};
 function ensureUser(userId) {
   if (!userData[userId]) {
     userData[userId] = {
-      coins: 1000, // Starting coins
+      coins: 1000,
       fifaCards: [],
-      lastDaily: 0 // Track last daily reward timestamp
+      lastDaily: 0
     };
+    saveData();
   }
 }
 
 /**
  * Get user's coin balance
- * @param {string} userId 
- * @returns {number}
  */
 export function getWallet(userId) {
   ensureUser(userId);
@@ -28,47 +50,22 @@ export function getWallet(userId) {
 }
 
 /**
- * Get the full user wallet object (coins + lastDaily)
- * @param {string} userId 
- * @returns {{ coins: number, lastDaily: number }}
- */
-export function getUserData(userId) {
-  ensureUser(userId);
-  const { coins, lastDaily } = userData[userId];
-  return { coins, lastDaily };
-}
-
-/**
- * Update user's wallet (coins and lastDaily)
- * @param {string} userId 
- * @param {{ coins: number, lastDaily: number }} data 
- */
-export function updateUserData(userId, data) {
-  ensureUser(userId);
-  userData[userId].coins = data.coins;
-  userData[userId].lastDaily = data.lastDaily;
-}
-
-/**
  * Add coins to user's wallet
- * @param {string} userId 
- * @param {number} amount 
  */
 export function addCoins(userId, amount) {
   ensureUser(userId);
   userData[userId].coins += amount;
+  saveData();
 }
 
 /**
  * Remove coins from user's wallet
- * @param {string} userId 
- * @param {number} amount 
- * @returns {boolean} success
  */
 export function removeCoins(userId, amount) {
   ensureUser(userId);
   if (userData[userId].coins >= amount) {
     userData[userId].coins -= amount;
+    saveData();
     return true;
   }
   return false;
@@ -76,8 +73,6 @@ export function removeCoins(userId, amount) {
 
 /**
  * Get user's FIFA cards
- * @param {string} userId 
- * @returns {string[]}
  */
 export function getFifaCards(userId) {
   ensureUser(userId);
@@ -86,17 +81,33 @@ export function getFifaCards(userId) {
 
 /**
  * Add a FIFA card to user's collection
- * @param {string} userId 
- * @param {string} cardName 
  */
 export function addFifaCard(userId, cardName) {
   ensureUser(userId);
   userData[userId].fifaCards.push(cardName);
+  saveData();
 }
 
 /**
- * Export all user data - for persistence (not implemented here)
+ * Export all user data - for debugging or backups
  */
 export function exportData() {
   return JSON.stringify(userData, null, 2);
+}
+
+/**
+ * Get all user data
+ */
+export function getUserData(userId) {
+  ensureUser(userId);
+  return userData[userId];
+}
+
+/**
+ * Update multiple fields in user data
+ */
+export function updateUserData(userId, updates) {
+  ensureUser(userId);
+  Object.assign(userData[userId], updates);
+  saveData();
 }
