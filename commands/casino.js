@@ -6,48 +6,98 @@ function sleep(ms) {
 }
 
 function formatCoins(amount) {
-  return `💰 ${amount} coins`;
+  return `💰 ${amount.toLocaleString()} coins`;
 }
 
-// 🧠 In-memory cooldown tracker
-const lastDailyClaim = {};
-
-// 📅 Daily reward (in-memory cooldown)
-async function daily(sock, msg) {
-  const user = getUserId(msg);
-  const from = msg.key.remoteJid;
-  const now = Date.now();
-  const DAY = 24 * 60 * 60 * 1000;
-
-  if (lastDailyClaim[user] && now - lastDailyClaim[user] < DAY) {
-    const timeLeft = DAY - (now - lastDailyClaim[user]);
-    const hours = Math.floor(timeLeft / (60 * 60 * 1000));
-    const minutes = Math.floor((timeLeft % (60 * 60 * 1000)) / (60 * 1000));
-
-    return sock.sendMessage(from, {
-      text: `🕒 You've already claimed your daily reward.\nCome back in ${hours}h ${minutes}m.`,
-    });
-  }
-
-  // Set cooldown in memory
-  lastDailyClaim[user] = now;
-
-  addCoins(user, 500);
-  const newBalance = getWallet(user);
-
-  await sock.sendMessage(from, {
-    text: `🎁 You claimed 500 coins!\n💳 Wallet: ${formatCoins(newBalance)}`,
-  });
-}
-
-// 💳 Check wallet
+// 💳 Funny interactive wallet command
 async function wallet(sock, msg) {
   const user = getUserId(msg);
   const from = msg.key.remoteJid;
   const coins = getWallet(user);
 
+  const walletMsg = `
+👜 *LiamBot Wallet* 👜
+———————————————
+👤 User: @${user.split('@')[0]}
+
+${coins === 1000
+    ? `💵 Starting balance: *${formatCoins(coins)}* (fresh out the gate!)`
+    : `💵 Balance: *${formatCoins(coins)}*`}
+
+⚠️ Remember, this is the only coins you get. Go broke? That's on you! 😎
+
+🎲 Ready to gamble and become the next Andrew Tate?  
+🚗💨 *"Take risks, or stay broke."* — LiamBot wisdom
+
+${coins < 500 ? '😬 Low balance alert! Time to hustle or beg!' : '🔥 Keep stacking those coins!'}
+`;
+
   await sock.sendMessage(from, {
-    text: `💳 Your wallet: ${formatCoins(coins)}`,
+    text: walletMsg.trim(),
+    mentions: [msg.key.participant || user],
+  });
+}
+
+// 🏦 Give coins to another user
+async function give(sock, msg, args) {
+  const from = msg.key.remoteJid;
+  const sender = getUserId(msg);
+
+  if (args.length < 2) {
+    return sock.sendMessage(from, {
+      text: '❗ Usage: .give @user [amount]\nExample: .give @1234567890 500',
+    });
+  }
+
+  let targetMention = args[0];
+  if (!targetMention.startsWith('@')) {
+    return sock.sendMessage(from, {
+      text: '❗ Please mention a user like @1234567890',
+    });
+  }
+
+  // Remove @ and add WhatsApp suffix if missing
+  const targetUser = targetMention.slice(1).includes('@') ? targetMention.slice(1) : `${targetMention.slice(1)}@s.whatsapp.net`;
+
+  const amount = parseInt(args[1]);
+  if (isNaN(amount) || amount <= 0) {
+    return sock.sendMessage(from, {
+      text: '❗ Invalid amount! Please enter a positive number.',
+    });
+  }
+
+  const senderBalance = getWallet(sender);
+  if (amount > senderBalance) {
+    return sock.sendMessage(from, {
+      text: `❌ You don’t have enough coins. Your balance: ${formatCoins(senderBalance)}`,
+    });
+  }
+
+  if (sender === targetUser) {
+    return sock.sendMessage(from, {
+      text: `🤨 Trying to give coins to yourself? Nice try!`,
+    });
+  }
+
+  // Transfer coins
+  removeCoins(sender, amount);
+  addCoins(targetUser, amount);
+
+  const senderNewBalance = getWallet(sender);
+
+  const giveMsg = `
+💸 *XeonBot Transfer* 💸
+
+👤 *You* gave *${formatCoins(amount)}* to @${targetUser.split('@')[0]}!
+
+🔄 Your new balance: ${formatCoins(senderNewBalance)}
+
+${senderNewBalance < 500 ? '⚠️ Low balance, hustle harder!' : '💪 Keep those coins flowing!'}
+`;
+
+  await sock.sendMessage(from, {
+    text: giveMsg.trim(),
+    mentions: [targetUser, sender],
   });
 }
 
@@ -126,7 +176,7 @@ async function horse(sock, msg, args) {
 }
 
 export default {
-  daily,
   wallet,
+  give,
   horse,
 };
