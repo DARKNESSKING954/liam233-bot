@@ -2,14 +2,13 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// ✅ Make path relative to this file's actual location, not CWD
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_FILE = path.resolve(__dirname, 'data.json');
 
 let userData = {};
 
-// Load data from file on startup
+// Load data on startup
 if (fs.existsSync(DATA_FILE)) {
   try {
     const raw = fs.readFileSync(DATA_FILE, 'utf-8');
@@ -32,7 +31,7 @@ function ensureUser(userId) {
   if (!userData[userId]) {
     userData[userId] = {
       coins: 1000,
-      lastDaily: 0,
+      lastDailyDate: null,
       fifaCards: []
     };
     saveData();
@@ -89,14 +88,14 @@ export function exportData() {
   return JSON.stringify(userData, null, 2);
 }
 
-// ✅ Correct cooldown logic using timestamp (milliseconds)
+// ✅ Date-based cooldown tracking
 export function getLastDaily(userId) {
   ensureUser(userId);
-  return userData[userId].lastDaily || 0;
+  return userData[userId].lastDailyDate || null;
 }
 
-export function setLastDaily(userId, timestamp) {
+export function setLastDaily(userId, dateStr) {
   ensureUser(userId);
-  userData[userId].lastDaily = timestamp;
+  userData[userId].lastDailyDate = dateStr;
   saveData();
 }
