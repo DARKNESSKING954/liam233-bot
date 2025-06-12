@@ -9,32 +9,26 @@ function formatCoins(amount) {
   return `💰 ${amount} coins`;
 }
 
-// 📅 Daily reward (with cooldown tracking in memory.js)
+function getTodayDateStr() {
+  return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+// 📅 Daily command with calendar-based cooldown
 async function daily(sock, msg) {
   const user = getUserId(msg);
   const from = msg.key.remoteJid;
 
-  console.log(`[DAILY] Command called by user: ${user}`);
+  const today = getTodayDateStr();
+  const lastDate = getLastDaily(user);
 
-  const lastDaily = getLastDaily(user);
-  const now = Date.now();
-  const DAY = 24 * 60 * 60 * 1000;
-
-  console.log(`[DAILY] lastDaily=${lastDaily}, now=${now}, diff=${now - lastDaily}`);
-
-  if (now - lastDaily < DAY) {
-    const timeLeft = DAY - (now - lastDaily);
-    const hours = Math.floor(timeLeft / (60 * 60 * 1000));
-    const minutes = Math.floor((timeLeft % (60 * 60 * 1000)) / (60 * 1000));
-    console.log(`[DAILY] User ${user} tried to claim early. Time left: ${hours}h ${minutes}m`);
+  if (today === lastDate) {
     return sock.sendMessage(from, {
-      text: `🕒 You've already claimed your daily reward.\nCome back in ${hours}h ${minutes}m.`
+      text: `🕒 You've already claimed your daily reward today.\nCome back tomorrow!`
     });
   }
 
   addCoins(user, 500);
-  setLastDaily(user, now);
-  console.log(`[DAILY] setLastDaily called with timestamp: ${now}`);
+  setLastDaily(user, today);
 
   const newBalance = getWallet(user);
   await sock.sendMessage(from, {
@@ -65,7 +59,20 @@ async function horse(sock, msg, args) {
   if (bet > balance)
     return sock.sendMessage(from, { text: `❌ Not enough coins. You have: ${formatCoins(balance)}` });
 
-  await sock.sendMessage(from, { text: '🐎 The horses are lining up...' });
+  const hypeMessages = [
+    '🎺 Trumpets blare! The horses are making their way to the starting line...',
+    '🐎 The crowd is roaring as the horses trot into position!',
+    '🎉 Welcome to today’s high-stakes race! Place your final bets!',
+    '🥁 The drum rolls begin... it’s almost time for action!'
+  ];
+
+  const postRaceMessages = [
+    '📣 That was an intense race!',
+    '🔥 The energy in the crowd is electric!',
+    '👏 What a finish! The fans are going wild!'
+  ];
+
+  await sock.sendMessage(from, { text: hypeMessages[Math.floor(Math.random() * hypeMessages.length)] });
   await sleep(1000);
   await sock.sendMessage(from, { text: '🏁 The race begins!' });
   await sleep(1000);
@@ -93,6 +100,8 @@ async function horse(sock, msg, args) {
   const winner = winners[Math.floor(Math.random() * winners.length)];
 
   await sock.sendMessage(from, { text: `🏁 Winner: Horse ${winner}` });
+  await sleep(500);
+  await sock.sendMessage(from, { text: postRaceMessages[Math.floor(Math.random() * postRaceMessages.length)] });
 
   if (pick === winner) {
     addCoins(user, bet * 2);
