@@ -89,16 +89,14 @@ export function exportData() {
   return JSON.stringify(userData, null, 2);
 }
 
-// ✅ Debug logs added for cooldown tracking
+// ✅ Correct cooldown logic using timestamp (milliseconds)
 export function getLastDaily(userId) {
   ensureUser(userId);
-  console.log(`[getLastDaily] userId=${userId} lastDaily=${userData[userId].lastDaily}`);
   return userData[userId].lastDaily || 0;
 }
 
 export function setLastDaily(userId, timestamp) {
   ensureUser(userId);
-  console.log(`[setLastDaily] userId=${userId} timestamp=${timestamp}`);
   userData[userId].lastDaily = timestamp;
   saveData();
 }
