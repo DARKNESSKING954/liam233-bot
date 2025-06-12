@@ -2,19 +2,18 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// ✅ Make path relative to this file's actual location, not CWD
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_FILE = path.resolve(__dirname, 'data.json');
 
 let userData = {};
 
-// Load data from file on startup
+// Load from file
 if (fs.existsSync(DATA_FILE)) {
   try {
     const raw = fs.readFileSync(DATA_FILE, 'utf-8');
     userData = JSON.parse(raw);
-    console.log('✅ User data loaded from file.');
+    console.log('✅ Loaded user data.');
   } catch (err) {
     console.error('❌ Failed to load user data:', err);
   }
@@ -32,24 +31,14 @@ function ensureUser(userId) {
   if (!userData[userId]) {
     userData[userId] = {
       coins: 1000,
-      lastDaily: 0,
+      lastDailyDate: '1970-01-01',
       fifaCards: []
     };
-    saveData();
+  } else {
+    if (!userData[userId].lastDailyDate) {
+      userData[userId].lastDailyDate = '1970-01-01';
+    }
   }
-}
-
-export function getUserData(userId) {
-  ensureUser(userId);
-  return userData[userId];
-}
-
-export function updateUserData(userId, newFields) {
-  ensureUser(userId);
-  userData[userId] = {
-    ...userData[userId],
-    ...newFields
-  };
   saveData();
 }
 
@@ -74,31 +63,13 @@ export function removeCoins(userId, amount) {
   return false;
 }
 
-export function getFifaCards(userId) {
-  ensureUser(userId);
-  return userData[userId].fifaCards;
-}
-
-export function addFifaCard(userId, cardName) {
-  ensureUser(userId);
-  userData[userId].fifaCards.push(cardName);
-  saveData();
-}
-
-export function exportData() {
-  return JSON.stringify(userData, null, 2);
-}
-
-// ✅ Debug logs added for cooldown tracking
 export function getLastDaily(userId) {
   ensureUser(userId);
-  console.log(`[getLastDaily] userId=${userId} lastDaily=${userData[userId].lastDaily}`);
-  return userData[userId].lastDaily || 0;
+  return userData[userId].lastDailyDate;
 }
 
-export function setLastDaily(userId, timestamp) {
+export function setLastDaily(userId, dateStr) {
   ensureUser(userId);
-  console.log(`[setLastDaily] userId=${userId} timestamp=${timestamp}`);
-  userData[userId].lastDaily = timestamp;  // Use consistent lastDaily number timestamp here
+  userData[userId].lastDailyDate = dateStr;
   saveData();
 }
