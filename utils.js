@@ -1,3 +1,6 @@
+// utils.js
 export function getUserId(msg) {
-  return msg.key.participant || msg.key.remoteJid;
+  if (msg.key.participant) return msg.key.participant;
+  if (msg.key.remoteJid.endsWith('@g.us')) return msg.participant || msg.key.remoteJid;
+  return msg.key.remoteJid;
 }
