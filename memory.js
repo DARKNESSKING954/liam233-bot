@@ -32,11 +32,36 @@ function saveData() {
 function ensureUser(userId) {
   if (!userData[userId]) {
     userData[userId] = {
-      coins: 1000, // Starting coins
+      coins: 1000,        // Starting coins
+      lastDaily: 0,       // ✅ Add this to prevent .daily abuse
       fifaCards: []
     };
     saveData();  // Save after creating new user
   }
+}
+
+/**
+ * Get full user data object
+ * @param {string} userId
+ * @returns {object}
+ */
+export function getUserData(userId) {
+  ensureUser(userId);
+  return userData[userId];
+}
+
+/**
+ * Replace or update fields in user's data
+ * @param {string} userId
+ * @param {object} newFields
+ */
+export function updateUserData(userId, newFields) {
+  ensureUser(userId);
+  userData[userId] = {
+    ...userData[userId],
+    ...newFields
+  };
+  saveData();
 }
 
 /**
