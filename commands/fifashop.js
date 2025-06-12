@@ -1,7 +1,7 @@
 // commands/fifashop.js
 // 📦 LiamBot FIFA Shop Commands
 
-import * as memory from './memory.js';
+import * as memory from '../memory.js';
 
 const fifaCards = [
   {
