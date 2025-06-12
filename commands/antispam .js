@@ -1,6 +1,6 @@
 // 📦 LiamBot Anti-Spam & Moderation Commands
 
-import * as memory from "./memory.js"; // ✅ Correct import for named exports
+import * as memory from "../memory.js"; // ✅ Correct import for named exports
 
 export default {
   antispam(sock, msg, args) {
