@@ -1,7 +1,12 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const DATA_FILE = path.resolve('./data.json');
+// ✅ Make path relative to this file's actual location, not CWD
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DATA_FILE = path.resolve(__dirname, 'data.json');
+
 let userData = {};
 
 // Load data from file on startup
