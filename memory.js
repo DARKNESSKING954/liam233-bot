@@ -2,14 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Path handling
+// ✅ Make path relative to this file's actual location, not CWD
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_FILE = path.resolve(__dirname, 'data.json');
 
 let userData = {};
 
-// Load existing user data
+// Load data from file on startup
 if (fs.existsSync(DATA_FILE)) {
   try {
     const raw = fs.readFileSync(DATA_FILE, 'utf-8');
@@ -32,7 +32,7 @@ function ensureUser(userId) {
   if (!userData[userId]) {
     userData[userId] = {
       coins: 1000,
-      lastDailyDate: null,
+      lastDaily: 0,
       fifaCards: []
     };
     saveData();
@@ -89,17 +89,16 @@ export function exportData() {
   return JSON.stringify(userData, null, 2);
 }
 
-// ✅ Cooldown tracking (calendar date-based)
+// ✅ Debug logs added for cooldown tracking
 export function getLastDaily(userId) {
   ensureUser(userId);
-  const date = userData[userId].lastDailyDate || null;
-  console.log(`[getLastDaily] ${userId}: ${date}`);
-  return date;
+  console.log(`[getLastDaily] userId=${userId} lastDaily=${userData[userId].lastDaily}`);
+  return userData[userId].lastDaily || 0;
 }
 
-export function setLastDaily(userId, dateStr) {
+export function setLastDaily(userId, timestamp) {
   ensureUser(userId);
-  console.log(`[setLastDaily] ${userId}: ${dateStr}`);
-  userData[userId].lastDailyDate = dateStr;
+  console.log(`[setLastDaily] userId=${userId} timestamp=${timestamp}`);
+  userData[userId].lastDaily = timestamp;  // Use consistent lastDaily number timestamp here
   saveData();
 }
