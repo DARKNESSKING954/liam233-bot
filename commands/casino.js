@@ -1,4 +1,4 @@
-import { getWallet, addCoins, removeCoins } from '../memory.js';
+import { getWallet, getUserData, updateUserData, addCoins, removeCoins } from '../memory.js';
 import { getUserId } from '../utils.js';
 
 function sleep(ms) {
@@ -9,23 +9,33 @@ function formatCoins(amount) {
   return `💰 ${amount} coins`;
 }
 
-// 📅 Daily claim limiter
-const dailyClaimed = new Map();
-
+// 📅 Daily reward (persistent)
 async function daily(sock, msg) {
   const user = getUserId(msg);
   const from = msg.key.remoteJid;
 
-  const last = dailyClaimed.get(user);
+  const { coins, lastDaily } = getUserData(user);
   const now = Date.now();
+  const DAY = 24 * 60 * 60 * 1000;
 
-  if (last && now - last < 24 * 60 * 60 * 1000) {
-    return sock.sendMessage(from, { text: '🕒 You already claimed your daily reward. Try again later.' });
+  if (now - lastDaily < DAY) {
+    const timeLeft = DAY - (now - lastDaily);
+    const hours = Math.floor(timeLeft / (60 * 60 * 1000));
+    const minutes = Math.floor((timeLeft % (60 * 60 * 1000)) / (60 * 1000));
+    return sock.sendMessage(from, {
+      text: `🕒 You've already claimed your daily reward.\nCome back in ${hours}h ${minutes}m.`
+    });
   }
 
-  addCoins(user, 500);
-  dailyClaimed.set(user, now);
-  await sock.sendMessage(from, { text: `🎁 You claimed 500 coins! Your wallet: ${formatCoins(getWallet(user))}` });
+  const newCoins = coins + 500;
+  updateUserData(user, {
+    coins: newCoins,
+    lastDaily: now
+  });
+
+  await sock.sendMessage(from, {
+    text: `🎁 You claimed 500 coins! Your wallet: ${formatCoins(newCoins)}`
+  });
 }
 
 // 💳 Check wallet
