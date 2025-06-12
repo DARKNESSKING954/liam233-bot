@@ -1,6 +1,5 @@
 // memory.js
 // In-memory storage for user data: coins and FIFA cards.
-// You can later replace this with a database.
 
 const userData = {};
 
@@ -12,7 +11,8 @@ function ensureUser(userId) {
   if (!userData[userId]) {
     userData[userId] = {
       coins: 1000, // Starting coins
-      fifaCards: []
+      fifaCards: [],
+      lastDaily: 0 // Track last daily reward timestamp
     };
   }
 }
@@ -25,6 +25,28 @@ function ensureUser(userId) {
 export function getWallet(userId) {
   ensureUser(userId);
   return userData[userId].coins;
+}
+
+/**
+ * Get the full user wallet object (coins + lastDaily)
+ * @param {string} userId 
+ * @returns {{ coins: number, lastDaily: number }}
+ */
+export function getUserData(userId) {
+  ensureUser(userId);
+  const { coins, lastDaily } = userData[userId];
+  return { coins, lastDaily };
+}
+
+/**
+ * Update user's wallet (coins and lastDaily)
+ * @param {string} userId 
+ * @param {{ coins: number, lastDaily: number }} data 
+ */
+export function updateUserData(userId, data) {
+  ensureUser(userId);
+  userData[userId].coins = data.coins;
+  userData[userId].lastDaily = data.lastDaily;
 }
 
 /**
