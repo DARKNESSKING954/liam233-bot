@@ -9,32 +9,23 @@ function formatCoins(amount) {
   return `💰 ${amount} coins`;
 }
 
-// 📅 Daily reward (with cooldown tracking in memory.js)
+// 📅 Daily reward (calendar-based cooldown)
 async function daily(sock, msg) {
   const user = getUserId(msg);
   const from = msg.key.remoteJid;
 
-  console.log(`[DAILY] Command called by user: ${user}`);
+  const now = new Date();
+  const today = now.toDateString(); // e.g., "Mon Jun 10 2025"
+  const lastClaimDate = getLastDaily(user); // Stored as a string
 
-  const lastDaily = getLastDaily(user);
-  const now = Date.now();
-  const DAY = 24 * 60 * 60 * 1000;
-
-  console.log(`[DAILY] lastDaily=${lastDaily}, now=${now}, diff=${now - lastDaily}`);
-
-  if (now - lastDaily < DAY) {
-    const timeLeft = DAY - (now - lastDaily);
-    const hours = Math.floor(timeLeft / (60 * 60 * 1000));
-    const minutes = Math.floor((timeLeft % (60 * 60 * 1000)) / (60 * 1000));
-    console.log(`[DAILY] User ${user} tried to claim early. Time left: ${hours}h ${minutes}m`);
+  if (lastClaimDate === today) {
     return sock.sendMessage(from, {
-      text: `🕒 You've already claimed your daily reward.\nCome back in ${hours}h ${minutes}m.`
+      text: `🕒 You've already claimed your daily reward today.\nCome back tomorrow!`
     });
   }
 
   addCoins(user, 500);
-  setLastDaily(user, now);
-  console.log(`[DAILY] setLastDaily called with timestamp: ${now}`);
+  setLastDaily(user, today);
 
   const newBalance = getWallet(user);
   await sock.sendMessage(from, {
