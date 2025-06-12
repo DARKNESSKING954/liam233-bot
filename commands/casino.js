@@ -9,16 +9,15 @@ function formatCoins(amount) {
   return `💰 ${amount} coins`;
 }
 
-// 📅 Daily reward (calendar-based cooldown)
+// 📅 Daily reward — now using calendar day cooldown
 async function daily(sock, msg) {
   const user = getUserId(msg);
   const from = msg.key.remoteJid;
 
-  const now = new Date();
-  const today = now.toDateString(); // e.g., "Mon Jun 10 2025"
-  const lastClaimDate = getLastDaily(user); // Stored as a string
+  const today = new Date().toISOString().split('T')[0]; // e.g., "2025-06-12"
+  const lastDaily = getLastDaily(user);
 
-  if (lastClaimDate === today) {
+  if (lastDaily === today) {
     return sock.sendMessage(from, {
       text: `🕒 You've already claimed your daily reward today.\nCome back tomorrow!`
     });
