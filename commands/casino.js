@@ -9,11 +9,13 @@ function formatCoins(amount) {
   return `💰 ${amount.toLocaleString()} coins`;
 }
 
-// 💳 Funny interactive wallet command
+// 💳 Funny interactive wallet command — fully fixed to send styled text + mention user
 async function wallet(sock, msg) {
   const user = getUserId(msg);
   const from = msg.key.remoteJid;
   const coins = getWallet(user);
+
+  const userTag = msg.key.participant || user;
 
   const walletMsg = `
 👜 *LiamBot Wallet* 👜
@@ -34,7 +36,7 @@ ${coins < 500 ? '😬 Low balance alert! Time to hustle or beg!' : '🔥 Keep st
 
   await sock.sendMessage(from, {
     text: walletMsg.trim(),
-    mentions: [msg.key.participant || user],
+    mentions: [userTag],
   });
 }
 
@@ -86,7 +88,7 @@ async function give(sock, msg, args) {
   const senderNewBalance = getWallet(sender);
 
   const giveMsg = `
-💸 *XeonBot Transfer* 💸
+💸 *LiamBot Transfer* 💸
 
 👤 *You* gave *${formatCoins(amount)}* to @${targetUser.split('@')[0]}!
 
