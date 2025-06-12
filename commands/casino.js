@@ -9,10 +9,10 @@ function formatCoins(amount) {
   return `💰 ${amount} coins`;
 }
 
-// 🧠 In-memory cooldown map
+// 🧠 In-memory cooldown tracker
 const lastDailyClaim = {};
 
-// 📅 Daily reward (with in-memory cooldown)
+// 📅 Daily reward (in-memory cooldown)
 async function daily(sock, msg) {
   const user = getUserId(msg);
   const from = msg.key.remoteJid;
@@ -23,17 +23,20 @@ async function daily(sock, msg) {
     const timeLeft = DAY - (now - lastDailyClaim[user]);
     const hours = Math.floor(timeLeft / (60 * 60 * 1000));
     const minutes = Math.floor((timeLeft % (60 * 60 * 1000)) / (60 * 1000));
+
     return sock.sendMessage(from, {
-      text: `🕒 You've already claimed your daily reward.\nCome back in ${hours}h ${minutes}m.`
+      text: `🕒 You've already claimed your daily reward.\nCome back in ${hours}h ${minutes}m.`,
     });
   }
 
+  // Set cooldown in memory
   lastDailyClaim[user] = now;
+
   addCoins(user, 500);
   const newBalance = getWallet(user);
 
   await sock.sendMessage(from, {
-    text: `🎁 You claimed 500 coins! Your wallet: ${formatCoins(newBalance)}`
+    text: `🎁 You claimed 500 coins!\n💳 Wallet: ${formatCoins(newBalance)}`,
   });
 }
 
@@ -43,7 +46,9 @@ async function wallet(sock, msg) {
   const from = msg.key.remoteJid;
   const coins = getWallet(user);
 
-  await sock.sendMessage(from, { text: `💳 Your wallet: ${formatCoins(coins)}` });
+  await sock.sendMessage(from, {
+    text: `💳 Your wallet: ${formatCoins(coins)}`,
+  });
 }
 
 // 🐴 Horse game
@@ -54,20 +59,24 @@ async function horse(sock, msg, args) {
   const pick = parseInt(args[1]);
 
   if (isNaN(bet) || bet <= 0 || isNaN(pick) || pick < 1 || pick > 5)
-    return sock.sendMessage(from, { text: '❗ Usage: .horse <amount> <horse number (1-5)>' });
+    return sock.sendMessage(from, {
+      text: '❗ Usage: .horse <amount> <horse number (1-5)>',
+    });
 
   const balance = getWallet(user);
   if (bet > balance)
-    return sock.sendMessage(from, { text: `❌ Not enough coins. You have: ${formatCoins(balance)}` });
+    return sock.sendMessage(from, {
+      text: `❌ Not enough coins. You have: ${formatCoins(balance)}`,
+    });
 
-  // 🔥 Hype buildup
-  await sock.sendMessage(from, { text: '🐎 Horses are entering the track...' });
+  // 🎉 Hype build-up messages
+  await sock.sendMessage(from, { text: '🏇 Horses are warming up!' });
   await sleep(1000);
-  await sock.sendMessage(from, { text: '📣 The crowd is cheering loudly!' });
+  await sock.sendMessage(from, { text: '🐴 Stretching legs on the track...' });
   await sleep(1000);
-  await sock.sendMessage(from, { text: '🔔 Announcer: Place your final bets!' });
+  await sock.sendMessage(from, { text: '📢 Crowd is roaring! Place your bets!' });
   await sleep(1000);
-  await sock.sendMessage(from, { text: '🏁 And they\'re off!' });
+  await sock.sendMessage(from, { text: '🏁 The race begins!' });
   await sleep(1000);
 
   const positions = [0, 0, 0, 0, 0];
@@ -76,9 +85,9 @@ async function horse(sock, msg, args) {
     const advance = Math.floor(Math.random() * 5);
     positions[advance]++;
 
-    const raceVisual = positions.map((pos, idx) => {
-      return '─'.repeat(pos) + `🏇 Horse ${idx + 1}`;
-    }).join('\n');
+    const raceVisual = positions
+      .map((pos, idx) => '─'.repeat(pos) + `🏇 Horse ${idx + 1}`)
+      .join('\n');
 
     await sock.sendMessage(from, { text: `📊 Race Progress:\n\n${raceVisual}` });
     await sleep(400);
@@ -92,22 +101,27 @@ async function horse(sock, msg, args) {
 
   const winner = winners[Math.floor(Math.random() * winners.length)];
 
-  await sock.sendMessage(from, { text: `🏁 Winner: Horse ${winner}` });
+  await sock.sendMessage(from, {
+    text: `🏁 The race is over! Winner: 🏇 Horse ${winner}`,
+  });
 
-  // 🏆 Post-race drama
-  await sleep(800);
-  await sock.sendMessage(from, { text: `🎙️ Announcer: That was an insane finish!` });
+  // 🎉 Post-race commentary
+  await sock.sendMessage(from, { text: `🎤 What a finish! The crowd is going wild!` });
   await sleep(700);
-  await sock.sendMessage(from, { text: `📣 The crowd is going wild!` });
+  await sock.sendMessage(from, { text: `📦 Counting the coins...` });
   await sleep(700);
-  await sock.sendMessage(from, { text: `🎞️ Replay: Horse ${winner} surged at the last second!` });
+  await sock.sendMessage(from, { text: `📣 Let's reveal the result...` });
 
   if (pick === winner) {
     addCoins(user, bet * 2);
-    await sock.sendMessage(from, { text: `🎉 You won ${formatCoins(bet * 2)}!` });
+    await sock.sendMessage(from, {
+      text: `🎉 You won ${formatCoins(bet * 2)}!`,
+    });
   } else {
     removeCoins(user, bet);
-    await sock.sendMessage(from, { text: `😢 You lost ${formatCoins(bet)}.` });
+    await sock.sendMessage(from, {
+      text: `😢 You lost ${formatCoins(bet)}. Better luck next time!`,
+    });
   }
 }
 
