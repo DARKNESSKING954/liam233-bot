@@ -1,5 +1,5 @@
-import { getWallet, addCoins, removeCoins, getLastDaily, setLastDaily } from './memory.js';
-import { getUserId } from './utils.js';
+import { getWallet, addCoins, removeCoins, getLastDaily, setLastDaily } from '../memory.js';
+import { getUserId } from '../utils.js';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
