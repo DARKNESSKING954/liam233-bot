@@ -3,7 +3,7 @@ import fs from 'fs';
 const DATA_FILE = './data.json';
 let userData = {};
 
-// Load data from file on startup (if it exists)
+// Load data from file on startup
 if (fs.existsSync(DATA_FILE)) {
   try {
     const raw = fs.readFileSync(DATA_FILE, 'utf-8');
@@ -14,9 +14,6 @@ if (fs.existsSync(DATA_FILE)) {
   }
 }
 
-/**
- * Save current user data to disk
- */
 function saveData() {
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(userData, null, 2));
@@ -25,36 +22,22 @@ function saveData() {
   }
 }
 
-/**
- * Ensures user data exists
- * @param {string} userId 
- */
 function ensureUser(userId) {
   if (!userData[userId]) {
     userData[userId] = {
-      coins: 1000,        // Starting coins
-      lastDaily: 0,       // ✅ Add this to prevent .daily abuse
+      coins: 1000,
+      lastDaily: 0,
       fifaCards: []
     };
-    saveData();  // Save after creating new user
+    saveData();
   }
 }
 
-/**
- * Get full user data object
- * @param {string} userId
- * @returns {object}
- */
 export function getUserData(userId) {
   ensureUser(userId);
   return userData[userId];
 }
 
-/**
- * Replace or update fields in user's data
- * @param {string} userId
- * @param {object} newFields
- */
 export function updateUserData(userId, newFields) {
   ensureUser(userId);
   userData[userId] = {
@@ -64,67 +47,50 @@ export function updateUserData(userId, newFields) {
   saveData();
 }
 
-/**
- * Get user's coin balance
- * @param {string} userId 
- * @returns {number}
- */
 export function getWallet(userId) {
   ensureUser(userId);
   return userData[userId].coins;
 }
 
-/**
- * Add coins to user's wallet
- * @param {string} userId 
- * @param {number} amount 
- */
 export function addCoins(userId, amount) {
   ensureUser(userId);
   userData[userId].coins += amount;
-  saveData();  // Save after updating
+  saveData();
 }
 
-/**
- * Remove coins from user's wallet
- * @param {string} userId 
- * @param {number} amount 
- * @returns {boolean} success
- */
 export function removeCoins(userId, amount) {
   ensureUser(userId);
   if (userData[userId].coins >= amount) {
     userData[userId].coins -= amount;
-    saveData();  // Save after updating
+    saveData();
     return true;
   }
   return false;
 }
 
-/**
- * Get user's FIFA cards
- * @param {string} userId 
- * @returns {string[]}
- */
 export function getFifaCards(userId) {
   ensureUser(userId);
   return userData[userId].fifaCards;
 }
 
-/**
- * Add a FIFA card to user's collection
- * @param {string} userId 
- * @param {string} cardName 
- */
 export function addFifaCard(userId, cardName) {
   ensureUser(userId);
   userData[userId].fifaCards.push(cardName);
-  saveData();  // Save after updating
+  saveData();
 }
 
-/**
- * Export all user data - for debugging or backups
- */
 export function exportData() {
   return JSON.stringify(userData, null, 2);
+}
+
+// ✅ Add these cooldown helpers for .daily
+export function getLastDaily(userId) {
+  ensureUser(userId);
+  return userData[userId].lastDaily || 0;
+}
+
+export function setLastDaily(userId, timestamp) {
+  ensureUser(userId);
+  userData[userId].lastDaily = timestamp;
+  saveData();
 }
