@@ -1,4 +1,10 @@
-import { getWallet, addCoins, removeCoins, getLastDaily, setLastDaily } from '../memory.js';
+import {
+  getWallet,
+  addCoins,
+  removeCoins,
+  getLastDaily,
+  setLastDaily
+} from '../memory.js';
 import { getUserId } from '../utils.js';
 
 function sleep(ms) {
@@ -9,13 +15,15 @@ function formatCoins(amount) {
   return `💰 ${amount} coins`;
 }
 
-// 📅 Daily reward — now using calendar day cooldown
+// 📅 Daily reward with calendar-based cooldown
 async function daily(sock, msg) {
   const user = getUserId(msg);
   const from = msg.key.remoteJid;
 
-  const today = new Date().toISOString().split('T')[0]; // e.g., "2025-06-12"
+  const today = new Date().toISOString().split('T')[0]; // e.g. "2025-06-12"
   const lastDaily = getLastDaily(user);
+
+  console.log(`[DAILY] User: ${user}, Today: ${today}, LastDaily: ${lastDaily}`);
 
   if (lastDaily === today) {
     return sock.sendMessage(from, {
@@ -25,6 +33,7 @@ async function daily(sock, msg) {
 
   addCoins(user, 500);
   setLastDaily(user, today);
+  console.log(`[DAILY] Granted 500 coins to ${user} and updated lastDaily to ${today}`);
 
   const newBalance = getWallet(user);
   await sock.sendMessage(from, {
