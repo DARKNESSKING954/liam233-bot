@@ -1,4 +1,4 @@
-import { getWallet, addCoins, removeCoins, getLastDaily, setLastDaily } from './memory.js';
+import { getWallet, addCoins, removeCoins, getLastDaily, setLastDaily } from '../memory.js';
 import { getUserId } from '../utils.js';
 
 function sleep(ms) {
