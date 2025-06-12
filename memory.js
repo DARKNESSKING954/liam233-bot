@@ -1,6 +1,7 @@
 import fs from 'fs';
+import path from 'path';
 
-const DATA_FILE = './data.json';
+const DATA_FILE = path.resolve('./data.json');
 let userData = {};
 
 // Load data from file on startup
@@ -83,14 +84,16 @@ export function exportData() {
   return JSON.stringify(userData, null, 2);
 }
 
-// ✅ Add these cooldown helpers for .daily
+// ✅ Debug logs added for cooldown tracking
 export function getLastDaily(userId) {
   ensureUser(userId);
+  console.log(`[getLastDaily] userId=${userId} lastDaily=${userData[userId].lastDaily}`);
   return userData[userId].lastDaily || 0;
 }
 
 export function setLastDaily(userId, timestamp) {
   ensureUser(userId);
+  console.log(`[setLastDaily] userId=${userId} timestamp=${timestamp}`);
   userData[userId].lastDaily = timestamp;
   saveData();
 }
