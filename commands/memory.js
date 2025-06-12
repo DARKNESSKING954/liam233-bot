@@ -72,6 +72,23 @@ export function removeCoins(userId, amount) {
 }
 
 /**
+ * Get user's last daily claim timestamp
+ */
+export function getLastDaily(userId) {
+  ensureUser(userId);
+  return userData[userId].lastDaily || 0;
+}
+
+/**
+ * Set user's last daily claim timestamp
+ */
+export function setLastDaily(userId, timestamp) {
+  ensureUser(userId);
+  userData[userId].lastDaily = timestamp;
+  saveData();
+}
+
+/**
  * Get user's FIFA cards
  */
 export function getFifaCards(userId) {
@@ -96,7 +113,7 @@ export function exportData() {
 }
 
 /**
- * Get all user data
+ * Get all user data (full object)
  */
 export function getUserData(userId) {
   ensureUser(userId);
