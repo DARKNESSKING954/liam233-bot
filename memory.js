@@ -2,13 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Path handling
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_FILE = path.resolve(__dirname, 'data.json');
 
 let userData = {};
 
-// Load data on startup
+// Load existing user data
 if (fs.existsSync(DATA_FILE)) {
   try {
     const raw = fs.readFileSync(DATA_FILE, 'utf-8');
@@ -88,14 +89,17 @@ export function exportData() {
   return JSON.stringify(userData, null, 2);
 }
 
-// ✅ Date-based cooldown tracking
+// ✅ Cooldown tracking (calendar date-based)
 export function getLastDaily(userId) {
   ensureUser(userId);
-  return userData[userId].lastDailyDate || null;
+  const date = userData[userId].lastDailyDate || null;
+  console.log(`[getLastDaily] ${userId}: ${date}`);
+  return date;
 }
 
 export function setLastDaily(userId, dateStr) {
   ensureUser(userId);
+  console.log(`[setLastDaily] ${userId}: ${dateStr}`);
   userData[userId].lastDailyDate = dateStr;
   saveData();
 }
