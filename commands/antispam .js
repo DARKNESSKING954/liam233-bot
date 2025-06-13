@@ -59,7 +59,6 @@ export default {
     });
   },
 
-  // Add bad word
   async addbadword(sock, msg, args) {
     if (!(await isAdmin(sock, msg))) 
       return sock.sendMessage(msg.key.remoteJid, { text: "🚫 *Only admins can add bad words!*" });
@@ -69,7 +68,6 @@ export default {
     sock.sendMessage(msg.key.remoteJid, { text: `☠️ Word *${word}* added to the naughty list!` });
   },
 
-  // Remove bad word
   async removebadword(sock, msg, args) {
     if (!(await isAdmin(sock, msg))) 
       return sock.sendMessage(msg.key.remoteJid, { text: "🚫 *Only admins can remove bad words!*" });
@@ -79,7 +77,6 @@ export default {
     sock.sendMessage(msg.key.remoteJid, { text: `✅ Word *${word}* removed from the naughty list!` });
   },
 
-  // 🖼️ .antiimage
   async antiimage(sock, msg, args) {
     if (!(await isAdmin(sock, msg))) 
       return sock.sendMessage(msg.key.remoteJid, { text: "🚫 *Only admins can toggle anti-image!*" });
@@ -95,7 +92,6 @@ export default {
     });
   },
 
-  // 🎞️ .antivideo
   async antivideo(sock, msg, args) {
     if (!(await isAdmin(sock, msg))) 
       return sock.sendMessage(msg.key.remoteJid, { text: "🚫 *Only admins can toggle anti-video!*" });
@@ -111,7 +107,6 @@ export default {
     });
   },
 
-  // 🧻 .antisticker
   async antisticker(sock, msg, args) {
     if (!(await isAdmin(sock, msg))) 
       return sock.sendMessage(msg.key.remoteJid, { text: "🚫 *Only admins can toggle anti-sticker!*" });
@@ -127,57 +122,56 @@ export default {
     });
   },
 
-  // 🧠 Message Middleware (Hooked from index.js)
+  // 🧠 Message Middleware
   async handleMessage(sock, msg) {
     const from = msg.key.remoteJid;
     const sender = msg.key.participant || msg.key.remoteJid;
+    const senderId = sender.includes(":") ? sender.split(":")[0] : sender;
     const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
     const msgType = Object.keys(msg.message || {})[0];
 
-    // Anti-Spam logic
-    if (toggles.antispam) {
-      const prev = spamTracker[sender] || { text: "", count: 0 };
-      if (prev.text === text) {
-        prev.count += 1;
-        if (prev.count >= 3) {
-          await sock.groupParticipantsUpdate(from, [sender], "remove");
-          return sock.sendMessage(from, { text: `🔁 @${sender.split('@')[0]} removed for spamming the same message 3 times!`, mentions: [sender] });
+    try {
+      if (toggles.antispam) {
+        const prev = spamTracker[senderId] || { text: "", count: 0 };
+        if (prev.text === text) {
+          prev.count += 1;
+          if (prev.count >= 3) {
+            await sock.groupParticipantsUpdate(from, [senderId], "remove");
+            return sock.sendMessage(from, { text: `🔁 @${senderId.split('@')[0]} removed for spamming the same message 3 times!`, mentions: [senderId] });
+          }
+        } else {
+          prev.text = text;
+          prev.count = 1;
         }
-      } else {
-        prev.text = text;
-        prev.count = 1;
+        spamTracker[senderId] = prev;
       }
-      spamTracker[sender] = prev;
-    }
 
-    // Anti-Link
-    if (toggles.antilink && isLink(text)) {
-      await sock.groupParticipantsUpdate(from, [sender], "remove");
-      return sock.sendMessage(from, { text: `🔗 @${sender.split('@')[0]} dropped a suspicious link and got the *ban hammer!* 🛠️`, mentions: [sender] });
-    }
+      if (toggles.antilink && isLink(text)) {
+        await sock.groupParticipantsUpdate(from, [senderId], "remove");
+        return sock.sendMessage(from, { text: `🔗 @${senderId.split('@')[0]} dropped a suspicious link and got the *ban hammer!* 🛠️`, mentions: [senderId] });
+      }
 
-    // Anti-Swearing
-    if (toggles.antiswearing && [...badWords].some(w => text.toLowerCase().includes(w))) {
-      await sock.groupParticipantsUpdate(from, [sender], "remove");
-      return sock.sendMessage(from, { text: `😤 @${sender.split('@')[0]} got kicked for being *too spicy*! 🔥`, mentions: [sender] });
-    }
+      if (toggles.antiswearing && [...badWords].some(w => text.toLowerCase().includes(w))) {
+        await sock.groupParticipantsUpdate(from, [senderId], "remove");
+        return sock.sendMessage(from, { text: `😤 @${senderId.split('@')[0]} got kicked for being *too spicy*! 🔥`, mentions: [senderId] });
+      }
 
-    // Anti-Image
-    if (toggles.antiimage && msgType === "imageMessage") {
-      await sock.groupParticipantsUpdate(from, [sender], "remove");
-      return sock.sendMessage(from, { text: `📸 @${sender.split('@')[0]} sent an image and got *deleted* from the gallery!`, mentions: [sender] });
-    }
+      if (toggles.antiimage && msgType === "imageMessage") {
+        await sock.groupParticipantsUpdate(from, [senderId], "remove");
+        return sock.sendMessage(from, { text: `📸 @${senderId.split('@')[0]} sent an image and got *deleted* from the gallery!`, mentions: [senderId] });
+      }
 
-    // Anti-Video
-    if (toggles.antivideo && msgType === "videoMessage") {
-      await sock.groupParticipantsUpdate(from, [sender], "remove");
-      return sock.sendMessage(from, { text: `🎬 @${sender.split('@')[0]} tried to premiere a video. They got canceled!`, mentions: [sender] });
-    }
+      if (toggles.antivideo && msgType === "videoMessage") {
+        await sock.groupParticipantsUpdate(from, [senderId], "remove");
+        return sock.sendMessage(from, { text: `🎬 @${senderId.split('@')[0]} tried to premiere a video. They got canceled!`, mentions: [senderId] });
+      }
 
-    // Anti-Sticker
-    if (toggles.antisticker && msgType === "stickerMessage") {
-      await sock.groupParticipantsUpdate(from, [sender], "remove");
-      return sock.sendMessage(from, { text: `🧻 @${sender.split('@')[0]} thought stickers were fun... until they got kicked.`, mentions: [sender] });
+      if (toggles.antisticker && msgType === "stickerMessage") {
+        await sock.groupParticipantsUpdate(from, [senderId], "remove");
+        return sock.sendMessage(from, { text: `🧻 @${senderId.split('@')[0]} thought stickers were fun... until they got kicked.`, mentions: [senderId] });
+      }
+    } catch (e) {
+      console.error("🚨 AntiSpam error:", e.message);
     }
   }
 };
