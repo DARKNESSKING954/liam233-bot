@@ -111,7 +111,7 @@ async function horse(sock, msg, args) {
 
   if (isNaN(bet) || bet <= 0 || isNaN(pick) || pick < 1 || pick > 5) {
     return sock.sendMessage(from, {
-      text: '❗ Usage: .horse (any amount) (horse number (1-5)) do not include brackets example: .horse 1500 2',
+      text: '❗ Usage: .horse <amount> <horse number (1-5)>',
     });
   }
 
