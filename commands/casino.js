@@ -1,4 +1,4 @@
-import { getWallet, addCoins, removeCoins } from '../memory.js';
+import { getWallet, addCoins, removeCoins, getLastDaily, setLastDaily } from '../memory.js';
 import { getUserId } from '../utils.js';
 
 function sleep(ms) {
@@ -9,12 +9,11 @@ function formatCoins(amount) {
   return `💰 ${amount.toLocaleString()} coins`;
 }
 
-// 💳 Funny interactive wallet command — fully fixed to send styled text + mention user
+// 💼 WALLET
 async function wallet(sock, msg) {
   const user = getUserId(msg);
   const from = msg.key.remoteJid;
   const coins = getWallet(user);
-
   const userTag = msg.key.participant || user;
 
   const walletMsg = `
@@ -40,7 +39,7 @@ ${coins < 500 ? '😬 Low balance alert! Time to hustle or beg!' : '🔥 Keep st
   });
 }
 
-// 🏦 Give coins to another user
+// 💸 GIVE
 async function give(sock, msg, args) {
   const from = msg.key.remoteJid;
   const sender = getUserId(msg);
@@ -58,8 +57,9 @@ async function give(sock, msg, args) {
     });
   }
 
-  // Remove @ and add WhatsApp suffix if missing
-  const targetUser = targetMention.slice(1).includes('@') ? targetMention.slice(1) : `${targetMention.slice(1)}@s.whatsapp.net`;
+  const targetUser = targetMention.slice(1).includes('@')
+    ? targetMention.slice(1)
+    : `${targetMention.slice(1)}@s.whatsapp.net`;
 
   const amount = parseInt(args[1]);
   if (isNaN(amount) || amount <= 0) {
@@ -81,7 +81,6 @@ async function give(sock, msg, args) {
     });
   }
 
-  // Transfer coins
   removeCoins(sender, amount);
   addCoins(targetUser, amount);
 
@@ -103,25 +102,26 @@ ${senderNewBalance < 500 ? '⚠️ Low balance, hustle harder!' : '💪 Keep tho
   });
 }
 
-// 🐴 Horse game
+// 🐴 HORSE
 async function horse(sock, msg, args) {
   const user = getUserId(msg);
   const from = msg.key.remoteJid;
   const bet = parseInt(args[0]);
   const pick = parseInt(args[1]);
 
-  if (isNaN(bet) || bet <= 0 || isNaN(pick) || pick < 1 || pick > 5)
+  if (isNaN(bet) || bet <= 0 || isNaN(pick) || pick < 1 || pick > 5) {
     return sock.sendMessage(from, {
       text: '❗ Usage: .horse <amount> <horse number (1-5)>',
     });
+  }
 
   const balance = getWallet(user);
-  if (bet > balance)
+  if (bet > balance) {
     return sock.sendMessage(from, {
       text: `❌ Not enough coins. You have: ${formatCoins(balance)}`,
     });
+  }
 
-  // 🎉 Hype build-up messages
   await sock.sendMessage(from, { text: '🏇 Horses are warming up!' });
   await sleep(1000);
   await sock.sendMessage(from, { text: '🐴 Stretching legs on the track...' });
@@ -136,7 +136,6 @@ async function horse(sock, msg, args) {
   for (let i = 0; i < 20; i++) {
     const advance = Math.floor(Math.random() * 5);
     positions[advance]++;
-
     const raceVisual = positions
       .map((pos, idx) => '─'.repeat(pos) + `🏇 Horse ${idx + 1}`)
       .join('\n');
@@ -157,7 +156,6 @@ async function horse(sock, msg, args) {
     text: `🏁 The race is over! Winner: 🏇 Horse ${winner}`,
   });
 
-  // 🎉 Post-race commentary
   await sock.sendMessage(from, { text: `🎤 What a finish! The crowd is going wild!` });
   await sleep(700);
   await sock.sendMessage(from, { text: `📦 Counting the coins...` });
@@ -177,8 +175,42 @@ async function horse(sock, msg, args) {
   }
 }
 
+// 🎁 DAILY
+async function daily(sock, msg) {
+  const from = msg.key.remoteJid;
+  const user = getUserId(msg);
+  const userTag = msg.key.participant || user;
+
+  const lastClaim = new Date(getLastDaily(user));
+  const now = new Date();
+  const diffMs = now - lastClaim;
+  const diffHours = diffMs / (1000 * 60 * 60);
+
+  if (diffHours < 24) {
+    const remainingMs = 24 * 60 * 60 * 1000 - diffMs;
+    const hours = Math.floor(remainingMs / (1000 * 60 * 60));
+    const minutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((remainingMs % (1000 * 60)) / 1000);
+
+    return sock.sendMessage(from, {
+      text: `⏳ You already claimed your daily coins!\nCome back in *${hours}h ${minutes}m ${seconds}s*.`,
+      mentions: [userTag]
+    });
+  }
+
+  const reward = 500;
+  addCoins(user, reward);
+  setLastDaily(user, now.toISOString());
+
+  await sock.sendMessage(from, {
+    text: `🎁 *Daily Reward Claimed!*\n\n@${user.split('@')[0]} received *${formatCoins(reward)}*!\n\nCome back in 24 hours for more coins.`,
+    mentions: [userTag],
+  });
+}
+
 export default {
   wallet,
   give,
   horse,
+  daily,
 };
