@@ -1,27 +1,21 @@
 // utils.js
 
-export function getUserId(msg) {
-  if (msg.key.participant) return msg.key.participant;
-  if (msg.key.remoteJid.endsWith('@g.us')) return msg.participant || msg.key.remoteJid;
-  return msg.key.remoteJid;
-}
-
 /**
- * Check if a user is an admin or super admin in a group chat.
- * @param {object} sock - WhatsApp client instance
- * @param {string} chatId - Group chat ID
- * @param {string} userId - User ID to check (e.g. '12345@s.whatsapp.net')
- * @returns {Promise<boolean>} True if user is admin, else false
+ * Check if the sender is an admin in the group chat.
+ * @param {import('whatsapp-web.js').Client} sock - The WhatsApp client instance.
+ * @param {import('whatsapp-web.js').Message} msg - The incoming message object.
+ * @returns {Promise<boolean>} True if sender is admin, false otherwise.
  */
-export async function isAdmin(sock, chatId, userId) {
+export async function isAdmin(sock, msg) {
   try {
-    const metadata = await sock.groupMetadata(chatId);
-    const participants = metadata.participants;
-    return participants.some(
-      (p) => p.id._serialized === userId && (p.isAdmin || p.isSuperAdmin)
-    );
+    const chat = await sock.getChatById(msg.key.remoteJid);
+    if (!chat.isGroup) return false;
+
+    const admins = chat.participants.filter(p => p.isAdmin || p.isSuperAdmin);
+    const senderId = msg.key.participant || msg.key.remoteJid;
+    return admins.some(admin => admin.id._serialized === senderId);
   } catch (error) {
-    console.error('Failed to check admin status:', error);
+    console.error('Error checking admin status:', error);
     return false;
   }
 }
