@@ -14,11 +14,14 @@ export function getUserId(msg) {
  */
 export async function isAdmin(sock, msg) {
   try {
-    const chat = await sock.getChatById(msg.key.remoteJid);
-    if (!chat.isGroup) return false;
-    const admins = chat.participants.filter(p => p.isAdmin || p.isSuperAdmin);
-    const senderId = msg.key.participant || msg.key.remoteJid;
-    return admins.some(admin => admin.id._serialized === senderId);
+    const chatId = msg.key.remoteJid;
+    const userId = msg.key.participant || msg.key.remoteJid;
+    const metadata = await sock.groupMetadata(chatId);
+    if (!metadata) return false;
+    const participants = metadata.participants;
+    return participants.some(
+      (p) => p.id._serialized === userId && (p.isAdmin || p.isSuperAdmin)
+    );
   } catch (error) {
     console.error('Failed to check admin status:', error);
     return false;
