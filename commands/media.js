@@ -1,9 +1,12 @@
-// commands/media.js
 import axios from 'axios';
 import ytsr from 'ytsr';
 import ytdl from 'ytdl-core';
+import { writeFileSync, unlinkSync } from 'fs';
+import path from 'path';
+import os from 'os';
+import { execSync } from 'child_process';
 
-// Xeon-style fun error messages for long videos and lyrics not found
+// Fun error messages for YouTube length and lyrics
 const ytLengthErrors = [
   "Whoa! That video is longer than my nap time 😴 Keep it under 30 minutes, please!",
   "Too long! I can't binge-watch that 🍿 Try something shorter!",
@@ -24,28 +27,27 @@ function durationToSeconds(duration) {
   return 0;
 }
 
-// --- .sticker [packname] [stickername]
-// Create sticker with pack and sticker name metadata
+// --- .sticker [packname] [name]
+// Create sticker with packname and author metadata
 export async function sticker(sock, msg, args) {
   try {
     const chatId = msg.key.remoteJid;
 
-    // Must be an image or short video sent with command
-    if (
-      !msg.message.imageMessage &&
-      !msg.message.videoMessage &&
-      !msg.message.documentMessage
-    ) {
+    // Must have media: image, video (<10s), or webp document
+    const hasMedia =
+      msg.message.imageMessage ||
+      msg.message.videoMessage ||
+      (msg.message.documentMessage && msg.message.documentMessage.mimetype === 'image/webp');
+
+    if (!hasMedia) {
       return sock.sendMessage(chatId, {
-        text:
-          "Send me an image or a short video with the `.sticker [packname] [name]` command to make a sticker!",
+        text: "Send me an image, short video (<10s), or sticker with `.sticker [packname] [name]` to create a custom sticker!",
       });
     }
 
     if (args.length < 2) {
       return sock.sendMessage(chatId, {
-        text:
-          "Usage: `.sticker [packname] [sticker name]` — You gotta give both pack and sticker names!",
+        text: "Usage: `.sticker [packname] [sticker name]` — Please provide both pack and sticker names!",
       });
     }
 
@@ -53,19 +55,14 @@ export async function sticker(sock, msg, args) {
     const stickername = args.slice(1).join(' ');
 
     // Download media buffer
-    const mediaMessage =
-      msg.message.imageMessage || msg.message.videoMessage || msg.message.documentMessage;
     const mediaBuffer = await sock.downloadMediaMessage(msg);
 
-    // Send sticker with metadata
+    // Send sticker with metadata (WhatsApp expects packname and author in sticker options)
     await sock.sendMessage(chatId, {
       sticker: mediaBuffer,
-      contextInfo: {
-        externalAdReply: {
-          title: stickername,
-          body: packname,
-        },
-      },
+      // Correct metadata keys for WhatsApp
+      stickerName: stickername,
+      stickerPackname: packname,
     });
 
     await sock.sendMessage(chatId, {
@@ -93,9 +90,9 @@ export async function youtube(sock, msg, args) {
     const query = args.join(' ');
 
     // Search YouTube videos
-    const filters1 = await ytsr.getFilters(query);
-    const filter1 = filters1.get('Type').get('Video');
-    const searchResults = await ytsr(filter1.url, { limit: 5 });
+    const filters = await ytsr.getFilters(query);
+    const videoFilter = filters.get('Type').get('Video');
+    const searchResults = await ytsr(videoFilter.url, { limit: 5 });
     const video = searchResults.items.find((v) => v.type === 'video');
 
     if (!video) {
@@ -112,22 +109,21 @@ export async function youtube(sock, msg, args) {
       return sock.sendMessage(chatId, { text: errMsg });
     }
 
-    // Download video as buffer via ytdl
+    // Download video via ytdl stream (buffering entire video can cause memory issues)
+    // Instead, download a smaller chunk or stream in parts — but WhatsApp requires a buffer so we fetch entire video here
+
     const info = await ytdl.getInfo(video.url);
-    const format = ytdl.chooseFormat(info.formats, {
-      quality: 'highestvideo',
-      filter: (format) => format.hasVideo && format.hasAudio,
-    });
+    // Choose highest combined audio+video format
+    const format = ytdl.chooseFormat(info.formats, (f) => f.hasAudio && f.hasVideo && f.container === 'mp4');
+
     if (!format || !format.url) {
       return sock.sendMessage(chatId, {
         text: "Sorry, couldn't get a downloadable video format 😞",
       });
     }
 
-    // Get video data as buffer
-    const response = await axios.get(format.url, {
-      responseType: 'arraybuffer',
-    });
+    // Download video buffer with axios (can be slow for big videos)
+    const response = await axios.get(format.url, { responseType: 'arraybuffer', timeout: 60000 });
     const videoBuffer = Buffer.from(response.data);
 
     await sock.sendMessage(chatId, {
@@ -157,9 +153,9 @@ export async function play(sock, msg, args) {
     const query = args.join(' ');
 
     // Search YouTube videos
-    const filters1 = await ytsr.getFilters(query);
-    const filter1 = filters1.get('Type').get('Video');
-    const searchResults = await ytsr(filter1.url, { limit: 5 });
+    const filters = await ytsr.getFilters(query);
+    const videoFilter = filters.get('Type').get('Video');
+    const searchResults = await ytsr(videoFilter.url, { limit: 5 });
     const video = searchResults.items.find((v) => v.type === 'video');
 
     if (!video) {
@@ -170,17 +166,16 @@ export async function play(sock, msg, args) {
 
     // Download audio stream
     const info = await ytdl.getInfo(video.url);
-    const audioFormat = ytdl.chooseFormat(info.formats, {
-      quality: 'highestaudio',
-      filter: 'audioonly',
-    });
+    const audioFormat = ytdl.chooseFormat(info.formats, (f) => f.audioBitrate && f.container === 'mp4' && !f.hasVideo);
+
     if (!audioFormat || !audioFormat.url) {
       return sock.sendMessage(chatId, {
         text: "Couldn't get audio stream 😢 Try again later.",
       });
     }
 
-    const response = await axios.get(audioFormat.url, { responseType: 'arraybuffer' });
+    // Download audio buffer via axios
+    const response = await axios.get(audioFormat.url, { responseType: 'arraybuffer', timeout: 60000 });
     const audioBuffer = Buffer.from(response.data);
 
     await sock.sendMessage(chatId, {
@@ -211,32 +206,32 @@ export async function lyrics(sock, msg, args) {
 
     const query = args.join(' ');
 
-    // Use lyrics.ovh API, but it expects artist and title separated
-    // We try with only song name as artist/title fallback (may fail for some)
-    // For better results, user can specify artist - songname (advanced)
+    // Use lyrics.ovh API with fallback to another free lyrics API
     const encoded = encodeURIComponent(query);
-    const url = `https://api.lyrics.ovh/v1/${encoded}/${encoded}`;
 
-    let res;
+    let lyricsText = null;
+
     try {
-      res = await axios.get(url, { timeout: 7000 });
-    } catch {
-      // fallback: try lyrics.ovh without artist/title (may not work)
+      const res = await axios.get(`https://api.lyrics.ovh/v1//${encoded}`, { timeout: 7000 });
+      if (res.data && res.data.lyrics) lyricsText = res.data.lyrics;
+    } catch {}
+
+    // If no lyrics, try another API (lyrics-finder)
+    if (!lyricsText) {
       try {
-        res = await axios.get(`https://api.lyrics.ovh/v1//${encoded}`, { timeout: 7000 });
-      } catch {
-        res = null;
-      }
+        const res2 = await axios.get(`https://some-random-api.ml/lyrics?title=${encoded}`, { timeout: 7000 });
+        if (res2.data && res2.data.lyrics) lyricsText = res2.data.lyrics;
+      } catch {}
     }
 
-    if (!res || !res.data || !res.data.lyrics) {
+    if (!lyricsText) {
       const errMsg = lyricsErrors[Math.floor(Math.random() * lyricsErrors.length)];
       return sock.sendMessage(chatId, {
         text: `Couldn't find lyrics for "${query}". ${errMsg}`,
       });
     }
 
-    let lyricsText = res.data.lyrics.trim();
+    lyricsText = lyricsText.trim();
 
     // Limit to 4000 chars for WhatsApp message
     if (lyricsText.length > 3900) {
