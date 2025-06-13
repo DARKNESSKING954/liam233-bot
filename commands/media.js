@@ -1,188 +1,48 @@
-import axios from 'axios';
-import ytsr from 'ytsr';
-import ytdl from 'ytdl-core';
-import { Sticker } from 'wa-sticker-formatter';
-import { execSync } from 'child_process';
+// commands/media.js // 📽️ LiamBot Media Commands — sticker, youtube, play, lyrics
 
-// --- Sticker command (.sticker [pack] [name])
-export async function sticker(sock, msg, args) {
-  try {
-    const chatId = msg.key.remoteJid;
-    const mediaMsg = msg.message;
+import { downloadMediaMessage } from '@whiskeysockets/baileys'; import { Sticker } from 'wa-sticker-formatter'; import ytsr from 'ytsr'; import ytdl from 'ytdl-core'; import axios from 'axios'; import fs from 'fs'; import path from 'path'; import os from 'os';
 
-    const hasMedia =
-      mediaMsg?.imageMessage ||
-      mediaMsg?.videoMessage ||
-      (mediaMsg?.documentMessage?.mimetype === 'image/webp');
+// --- .sticker [pack] [author] --- export async function sticker(sock, msg, args) { const chatId = msg.key.remoteJid; const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage || msg.message;
 
-    if (!hasMedia) {
-      return sock.sendMessage(chatId, {
-        text: "❗ Send an image/video/sticker with `.sticker [pack] [name]` to create a custom sticker!",
-      });
-    }
+if (!quoted.imageMessage && !quoted.videoMessage && !quoted.stickerMessage) { return sock.sendMessage(chatId, { text: '❌ Reply to an image, short video, or sticker with .sticker pack author' }); }
 
-    if (args.length < 2) {
-      return sock.sendMessage(chatId, {
-        text: "❗ Usage: `.sticker [packname] [name]`",
-      });
-    }
+if (args.length < 2) { return sock.sendMessage(chatId, { text: '❌ Usage: .sticker [pack] [author]' }); }
 
-    const pack = args[0];
-    const name = args.slice(1).join(' ');
-    const media = await sock.downloadMediaMessage(msg);
+const pack = args[0]; const author = args.slice(1).join(' ');
 
-    const sticker = new Sticker(media, {
-      pack: pack,
-      author: name,
-      type: Sticker.Types.FULL,
-    });
+const mediaBuffer = await downloadMediaMessage( { message: quoted }, 'buffer', {}, { logger: console, reuploadRequest: sock.updateMediaMessage } );
 
-    await sock.sendMessage(chatId, await sticker.toMessage());
-  } catch (e) {
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: `❌ Sticker error: ${e.message}`,
-    });
-  }
-}
+const sticker = new Sticker(mediaBuffer, { pack: pack, author: author, type: quoted.videoMessage ? 'video' : 'full', });
 
-// --- YouTube video downloader (.youtube [query])
-export async function youtube(sock, msg, args) {
-  try {
-    const chatId = msg.key.remoteJid;
+const buffer = await sticker.toBuffer(); await sock.sendMessage(chatId, { sticker: buffer }); }
 
-    if (!args.length) {
-      return sock.sendMessage(chatId, {
-        text: "❗ Usage: `.youtube [search query]`",
-      });
-    }
+// --- .youtube [search] --- export async function youtube(sock, msg, args) { const chatId = msg.key.remoteJid; if (!args.length) return sock.sendMessage(chatId, { text: '🔍 Usage: .youtube [search]' });
 
-    const query = args.join(' ');
-    const filters = await ytsr.getFilters(query);
-    const videoFilter = filters.get('Type').get('Video');
-    const searchResults = await ytsr(videoFilter.url, { limit: 5 });
-    const video = searchResults.items.find((v) => v.type === 'video');
+const query = args.join(' '); const result = (await ytsr(query, { limit: 5 })).items.find((v) => v.type === 'video'); if (!result) return sock.sendMessage(chatId, { text: '❌ No video found!' });
 
-    if (!video) {
-      return sock.sendMessage(chatId, { text: "⚠️ No results found!" });
-    }
+const videoUrl = result.url; const info = await ytdl.getInfo(videoUrl); const durationSec = parseInt(info.videoDetails.lengthSeconds); if (durationSec > 1800) return sock.sendMessage(chatId, { text: '⏳ Video is over 30 minutes. Try a shorter one!' });
 
-    // Reject videos longer than 30 minutes
-    const durationSecs = durationToSeconds(video.duration);
-    if (durationSecs > 1800) {
-      return sock.sendMessage(chatId, {
-        text: `⏳ Video too long (${video.duration}). Keep it under 30 minutes!`,
-      });
-    }
+const format = ytdl.chooseFormat(info.formats, { quality: '18' }); // 360p mp4 const output = path.join(os.tmpdir(), ${Date.now()}.mp4);
 
-    const info = await ytdl.getInfo(video.url);
-    const format = ytdl.chooseFormat(info.formats, {
-      quality: '18', // 360p mp4
-    });
+await new Promise((resolve, reject) => { ytdl(videoUrl, { format }) .pipe(fs.createWriteStream(output)) .on('finish', resolve) .on('error', reject); });
 
-    const response = await axios.get(format.url, {
-      responseType: 'arraybuffer',
-    });
+const videoBuffer = fs.readFileSync(output); fs.unlinkSync(output);
 
-    await sock.sendMessage(chatId, {
-      video: Buffer.from(response.data),
-      mimetype: 'video/mp4',
-      caption: `🎬 *${video.title}*\n🔗 ${video.url}`,
-    });
-  } catch (e) {
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: `❌ YouTube error: ${e.message}`,
-    });
-  }
-}
+await sock.sendMessage(chatId, { video: videoBuffer, mimetype: 'video/mp4', caption: 🎬 ${result.title}, }); }
 
-// --- Play audio from YouTube (.play [query])
-export async function play(sock, msg, args) {
-  try {
-    const chatId = msg.key.remoteJid;
+// --- .play [song name] --- export async function play(sock, msg, args) { const chatId = msg.key.remoteJid; if (!args.length) return sock.sendMessage(chatId, { text: '🎵 Usage: .play [song name]' });
 
-    if (!args.length) {
-      return sock.sendMessage(chatId, {
-        text: "❗ Usage: `.play [song name]`",
-      });
-    }
+const query = args.join(' '); const result = (await ytsr(query, { limit: 5 })).items.find((v) => v.type === 'video'); if (!result) return sock.sendMessage(chatId, { text: '❌ Song not found!' });
 
-    const query = args.join(' ');
-    const filters = await ytsr.getFilters(query);
-    const videoFilter = filters.get('Type').get('Video');
-    const searchResults = await ytsr(videoFilter.url, { limit: 5 });
-    const video = searchResults.items.find((v) => v.type === 'video');
+const videoUrl = result.url; const info = await ytdl.getInfo(videoUrl); const audioFormat = ytdl.chooseFormat(info.formats, { quality: 'highestaudio' }); const output = path.join(os.tmpdir(), ${Date.now()}.mp3);
 
-    if (!video) {
-      return sock.sendMessage(chatId, { text: "⚠️ No results found!" });
-    }
+await new Promise((resolve, reject) => { ytdl(videoUrl, { format: audioFormat }) .pipe(fs.createWriteStream(output)) .on('finish', resolve) .on('error', reject); });
 
-    const info = await ytdl.getInfo(video.url);
-    const audioFormat = ytdl.chooseFormat(info.formats, {
-      quality: 'highestaudio',
-    });
+const audioBuffer = fs.readFileSync(output); fs.unlinkSync(output);
 
-    const audio = await axios.get(audioFormat.url, {
-      responseType: 'arraybuffer',
-    });
+await sock.sendMessage(chatId, { audio: audioBuffer, mimetype: 'audio/mpeg', ptt: false, fileName: ${result.title}.mp3, caption: 🎧 Now playing: *${result.title}*, }); }
 
-    await sock.sendMessage(chatId, {
-      audio: Buffer.from(audio.data),
-      mimetype: 'audio/mpeg',
-      fileName: `${video.title}.mp3`,
-      caption: `🎶 *${video.title}*`,
-    });
-  } catch (e) {
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: `❌ Play error: ${e.message}`,
-    });
-  }
-}
+// --- .lyrics [song name] --- export async function lyrics(sock, msg, args) { const chatId = msg.key.remoteJid; if (!args.length) return sock.sendMessage(chatId, { text: '🎤 Usage: .lyrics [song name]' });
 
-// --- Lyrics command (.lyrics [song])
-export async function lyrics(sock, msg, args) {
-  try {
-    const chatId = msg.key.remoteJid;
+const query = args.join(' '); try { const res = await axios.get(https://api.lyrics.ovh/v1/unknown/${encodeURIComponent(query)}); if (res.data?.lyrics) { const lyrics = res.data.lyrics.length > 3900 ? res.data.lyrics.slice(0, 3900) + '\n\n[...truncated]' : res.data.lyrics; await sock.sendMessage(chatId, { text: 🎶 Lyrics for *${query}*:\n\n${lyrics}, }); } else { throw new Error('No lyrics found'); } } catch { return sock.sendMessage(chatId, { text: ❌ Lyrics not found for "${query}". Try another song!, }); } }
 
-    if (!args.length) {
-      return sock.sendMessage(chatId, {
-        text: "❗ Usage: `.lyrics [song name]`",
-      });
-    }
-
-    const query = args.join(' ');
-    const encoded = encodeURIComponent(query);
-    let lyricsText = null;
-
-    try {
-      const res = await axios.get(`https://some-random-api.ml/lyrics?title=${encoded}`);
-      if (res.data && res.data.lyrics) {
-        lyricsText = res.data.lyrics;
-      }
-    } catch {}
-
-    if (!lyricsText) {
-      return sock.sendMessage(chatId, {
-        text: `😢 No lyrics found for *${query}*. Try another song.`,
-      });
-    }
-
-    if (lyricsText.length > 3900) {
-      lyricsText = lyricsText.slice(0, 3900) + "\n\n[...truncated]";
-    }
-
-    await sock.sendMessage(chatId, {
-      text: `🎤 *Lyrics for ${query}*:\n\n${lyricsText}`,
-    });
-  } catch (e) {
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: `❌ Lyrics error: ${e.message}`,
-    });
-  }
-}
-
-// Helper to convert duration strings like "4:56" into seconds
-function durationToSeconds(str) {
-  if (!str) return 0;
-  const parts = str.split(':').map(Number);
-  return parts.reduce((acc, val, i) => acc + val * Math.pow(60, parts.length - 1 - i), 0);
-}
