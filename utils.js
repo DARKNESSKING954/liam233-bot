@@ -1,17 +1,13 @@
 // utils.js
 
+// 🧑‍💻 Get user ID from a message
 export function getUserId(msg) {
   if (msg.key.participant) return msg.key.participant;
   if (msg.key.remoteJid.endsWith('@g.us')) return msg.participant || msg.key.remoteJid;
   return msg.key.remoteJid;
 }
 
-/**
- * Check if the sender is an admin or super admin in a group chat.
- * @param {object} sock - WhatsApp client instance
- * @param {object} msg - WhatsApp message object
- * @returns {Promise<boolean>} True if sender is admin, else false
- */
+// 🛡️ Check if sender is an admin in a group
 export async function isAdmin(sock, msg) {
   try {
     const chatId = msg.key.remoteJid;
@@ -27,4 +23,16 @@ export async function isAdmin(sock, msg) {
     console.error('❌ Failed to check admin status:', error);
     return false;
   }
+}
+
+// 🧾 Optional: Sticker metadata utility (for wa-sticker-formatter use)
+export function stickerMetadata(packname = 'LiamBot', author = 'StickerMaster') {
+  return {
+    pack: packname,
+    author: author,
+    type: 'full',
+    categories: ['😂', '🔥', '💯'],
+    id: `liambot-${Date.now()}`,
+    quality: 75,
+  };
 }
