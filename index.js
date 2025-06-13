@@ -86,6 +86,16 @@ async function startBot() {
     if (!msg.message) return;
 
     const from = msg.key.remoteJid;
+
+    // *** Run handleMessage() for all messages to catch anti-spam, anti-sticker, etc. ***
+    if (commands.handlemessage || commands.handleMessage) {
+      try {
+        await (commands.handlemessage || commands.handleMessage)(sock, msg);
+      } catch (err) {
+        console.error('❌ Error in handleMessage:', err);
+      }
+    }
+
     const body =
       msg.message.conversation ||
       msg.message.extendedTextMessage?.text ||
