@@ -44,24 +44,18 @@ async function give(sock, msg, args) {
   const from = msg.key.remoteJid;
   const sender = getUserId(msg);
 
-  if (args.length < 2) {
+  // Get mentioned WhatsApp IDs from the message context (actual tagged users)
+  const mentionedUsers = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+
+  if (mentionedUsers.length === 0 || args.length < 2) {
     return sock.sendMessage(from, {
-      text: '❗ Usage: .give @user [amount]\nExample: .give @1234567890 500',
+      text: '❗ Usage: .give @user [amount]\nPlease *tag* the user properly in the message (select contact and mention).',
     });
   }
 
-  let targetMention = args[0];
-  if (!targetMention.startsWith('@')) {
-    return sock.sendMessage(from, {
-      text: '❗ Please mention a user like @1234567890',
-    });
-  }
-
-  const targetUser = targetMention.slice(1).includes('@')
-    ? targetMention.slice(1)
-    : `${targetMention.slice(1)}@s.whatsapp.net`;
-
+  const targetUser = mentionedUsers[0]; // The full WhatsApp ID of the mentioned user
   const amount = parseInt(args[1]);
+
   if (isNaN(amount) || amount <= 0) {
     return sock.sendMessage(from, {
       text: '❗ Invalid amount! Please enter a positive number.',
