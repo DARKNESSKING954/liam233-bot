@@ -1,17 +1,10 @@
 // commands/admin.js
-// 🤖 Group admin tools with personality and full functionality
+// 🛡️ Group Admin Tools — Xeon Style
 
-import fs from 'fs';
-import path from 'path';
-
-/**
- * Check if a user is admin
- */
 async function isAdmin(sock, jid, userId) {
   try {
     const metadata = await sock.groupMetadata(jid);
-    const participants = metadata.participants || [];
-    const user = participants.find(p => p.id === userId);
+    const user = metadata.participants.find(p => p.id === userId);
     return user && (user.admin === 'admin' || user.admin === 'superadmin');
   } catch {
     return false;
@@ -22,115 +15,29 @@ function getMentionedUsers(msg) {
   return msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
 }
 
-// 📤 Fun response templates
-function randomText(type, target) {
-  const lines = {
-    kick: [
-      `👢 Goodbye @${target.split('@')[0]}, don't forget your luggage!`,
-      `😅 Oof! @${target.split('@')[0]} just got launched out the group.`,
-      `🚪 Bye-bye @${target.split('@')[0]}, door’s that way.`
-    ],
-    ban: [
-      `🧹 Cleaned up! @${target.split('@')[0]} has been banned.`,
-      `🚫 Banned! @${target.split('@')[0]} was too spicy for this group.`,
-      `🛑 Sayonara @${target.split('@')[0]}!`
-    ],
-    promote: [
-      `🎉 Congrats @${target.split('@')[0]}! You're now admin.`,
-      `👑 Bow down! @${target.split('@')[0]} has been promoted.`,
-    ],
-    demote: [
-      `👎 Oof! @${target.split('@')[0]} just lost their admin cape.`,
-      `📉 Demoted! Back to peasant status @${target.split('@')[0]}.`,
-    ],
-    mute: [`🔇 Group has been muted. Only admins can chat now.`],
-    unmute: [`🔊 Group is now open. Everyone can chat!`],
-    leave: [`👋 I'm out! Peace.`],
-    warn: [`⚠️ Warning sent to @${target.split('@')[0]}. Be careful!`]
-  };
-  return lines[type][Math.floor(Math.random() * lines[type].length)];
+function getUserRole(metadata, id) {
+  const user = metadata.participants.find(p => p.id === id);
+  if (!user) return '❓ Not Found';
+  if (user.admin === 'superadmin') return '👑 Group Owner';
+  if (user.admin === 'admin') return '🛡️ Admin';
+  return '👤 Member';
 }
 
-/**
- * Kick/Ban user
- */
-export async function kick(sock, msg) {
-  const jid = msg.key.remoteJid;
-  const sender = msg.key.participant || msg.key.remoteJid;
-  const mentioned = getMentionedUsers(msg);
-
-  if (!(await isAdmin(sock, jid, sender)))
-    return sock.sendMessage(jid, { text: `🚫 You’re not admin. Nice try, rookie.` });
-
-  if (mentioned.length === 0)
-    return sock.sendMessage(jid, { text: `👀 Tag someone to kick.` });
-
-  for (let target of mentioned) {
-    try {
-      await sock.groupParticipantsUpdate(jid, [target], 'remove');
-      await sock.sendMessage(jid, {
-        text: randomText('kick', target),
-        mentions: [target],
-      });
-    } catch {
-      await sock.sendMessage(jid, { text: `❌ Failed to kick @${target.split('@')[0]}` });
-    }
-  }
-}
-export const ban = kick;
-
-/**
- * Mute / Unmute group
- */
-export async function mute(sock, msg) {
-  const jid = msg.key.remoteJid;
-  const sender = msg.key.participant || msg.key.remoteJid;
-
-  if (!(await isAdmin(sock, jid, sender)))
-    return sock.sendMessage(jid, { text: `🛑 You’re not admin, can’t mute.` });
-
-  try {
-    await sock.groupSettingUpdate(jid, 'announcement');
-    await sock.sendMessage(jid, { text: randomText('mute') });
-  } catch {
-    await sock.sendMessage(jid, { text: '❌ Mute failed. Am I even admin here?' });
-  }
-}
-
-export async function unmute(sock, msg) {
-  const jid = msg.key.remoteJid;
-  const sender = msg.key.participant || msg.key.remoteJid;
-
-  if (!(await isAdmin(sock, jid, sender)))
-    return sock.sendMessage(jid, { text: `🚷 Can’t unmute unless you’re admin.` });
-
-  try {
-    await sock.groupSettingUpdate(jid, 'not_announcement');
-    await sock.sendMessage(jid, { text: randomText('unmute') });
-  } catch {
-    await sock.sendMessage(jid, { text: 'Unmute failed. Something went boom 💥' });
-  }
-}
-
-/**
- * Promote/Demote user
- */
+// .promote
 export async function promote(sock, msg) {
   const jid = msg.key.remoteJid;
   const sender = msg.key.participant || msg.key.remoteJid;
   const mentioned = getMentionedUsers(msg);
-
   if (!(await isAdmin(sock, jid, sender)))
-    return sock.sendMessage(jid, { text: `⚠️ You're not admin. No promote powers.` });
-
-  if (mentioned.length === 0)
-    return sock.sendMessage(jid, { text: `Tag someone to promote.` });
+    return sock.sendMessage(jid, { text: `😤 You're not even admin, chill.` });
+  if (!mentioned.length)
+    return sock.sendMessage(jid, { text: `🤔 Tag someone to promote!\nUsage: *.promote @user*` });
 
   for (let target of mentioned) {
     try {
       await sock.groupParticipantsUpdate(jid, [target], 'promote');
       await sock.sendMessage(jid, {
-        text: randomText('promote', target),
+        text: `🆙 @${target.split('@')[0]} promoted to admin!`,
         mentions: [target]
       });
     } catch {
@@ -139,170 +46,176 @@ export async function promote(sock, msg) {
   }
 }
 
+// .demote
 export async function demote(sock, msg) {
   const jid = msg.key.remoteJid;
   const sender = msg.key.participant || msg.key.remoteJid;
   const mentioned = getMentionedUsers(msg);
-
   if (!(await isAdmin(sock, jid, sender)))
-    return sock.sendMessage(jid, { text: `😤 No admin badge, no demote power.` });
-
-  if (mentioned.length === 0)
-    return sock.sendMessage(jid, { text: `Tag someone to demote.` });
+    return sock.sendMessage(jid, { text: `🙃 You can’t demote anyone. Not admin.` });
+  if (!mentioned.length)
+    return sock.sendMessage(jid, { text: `📉 Tag someone to demote.\nUsage: *.demote @user*` });
 
   for (let target of mentioned) {
     try {
       await sock.groupParticipantsUpdate(jid, [target], 'demote');
       await sock.sendMessage(jid, {
-        text: randomText('demote', target),
+        text: `😢 @${target.split('@')[0]} was demoted. Back to default.`,
         mentions: [target]
       });
     } catch {
-      await sock.sendMessage(jid, { text: `❌ Failed to demote @${target.split('@')[0]}` });
+      await sock.sendMessage(jid, { text: `❌ Couldn't demote @${target.split('@')[0]}` });
     }
   }
 }
 
-/**
- * Add/Remove user
- */
+// .add
 export async function add(sock, msg, args) {
   const jid = msg.key.remoteJid;
   const sender = msg.key.participant || msg.key.remoteJid;
-
   if (!(await isAdmin(sock, jid, sender)))
-    return sock.sendMessage(jid, { text: `🙅‍♂️ You can’t add. You're not admin.` });
+    return sock.sendMessage(jid, { text: `🚫 You're not allowed to add. Admins only.` });
 
   const number = args[0]?.replace(/[^0-9]/g, '');
-  if (!number) return sock.sendMessage(jid, { text: `Provide a number to add.` });
+  if (!number)
+    return sock.sendMessage(jid, { text: `✳️ Provide a number to add.\nUsage: *.add 1234567890*` });
 
   try {
     const id = number + '@s.whatsapp.net';
     await sock.groupParticipantsUpdate(jid, [id], 'add');
-    await sock.sendMessage(jid, { text: `👤 Added: @${number}`, mentions: [id] });
+    await sock.sendMessage(jid, {
+      text: `👋 Welcome @${number}!`,
+      mentions: [id]
+    });
   } catch {
-    await sock.sendMessage(jid, { text: `❌ Couldn’t add @${number}` });
+    await sock.sendMessage(jid, { text: `❌ Could not add user. Privacy issues maybe.` });
   }
 }
-export const remove = kick;
 
-/**
- * Warn user
- */
-export async function warn(sock, msg) {
+// .remove
+export async function remove(sock, msg) {
   const jid = msg.key.remoteJid;
   const sender = msg.key.participant || msg.key.remoteJid;
   const mentioned = getMentionedUsers(msg);
-
   if (!(await isAdmin(sock, jid, sender)))
-    return sock.sendMessage(jid, { text: `🚷 No warning powers for you.` });
-
-  if (mentioned.length === 0)
-    return sock.sendMessage(jid, { text: `Tag someone to warn.` });
+    return sock.sendMessage(jid, { text: `❌ Only admins can kick.` });
+  if (!mentioned.length)
+    return sock.sendMessage(jid, { text: `🗑️ Tag someone to remove.\nUsage: *.remove @user*` });
 
   for (let target of mentioned) {
-    await sock.sendMessage(jid, {
-      text: randomText('warn', target),
-      mentions: [target]
-    });
+    try {
+      await sock.groupParticipantsUpdate(jid, [target], 'remove');
+      await sock.sendMessage(jid, {
+        text: `👢 @${target.split('@')[0]} removed from the group.`,
+        mentions: [target]
+      });
+    } catch {
+      await sock.sendMessage(jid, { text: `❌ Couldn't remove @${target.split('@')[0]}` });
+    }
   }
 }
 
-/**
- * Clear bot's own message
- */
-export async function clear(sock, msg) {
-  try {
-    await sock.sendMessage(msg.key.remoteJid, {
-      delete: { remoteJid: msg.key.remoteJid, fromMe: true, id: msg.key.id }
-    });
-  } catch {
-    await sock.sendMessage(msg.key.remoteJid, { text: `💥 Clear failed.` });
-  }
-}
-
-/**
- * Group info
- */
-export async function info(sock, msg) {
-  const jid = msg.key.remoteJid;
-  try {
-    const metadata = await sock.groupMetadata(jid);
-    const text = `👥 *Group Info*\n📛 Name: ${metadata.subject}\n👑 Owner: ${metadata.owner || 'Unknown'}\n📝 Desc: ${metadata.desc || 'No description'}\n👤 Members: ${metadata.participants.length}`;
-    await sock.sendMessage(jid, { text });
-  } catch {
-    await sock.sendMessage(jid, { text: 'Failed to fetch group info 😓' });
-  }
-}
-
-/**
- * Set group description
- */
+// .setdesc
 export async function setdesc(sock, msg, args) {
   const jid = msg.key.remoteJid;
-  if (!(await isAdmin(sock, jid, msg.key.participant || msg.key.remoteJid)))
-    return sock.sendMessage(jid, { text: `You're not admin, genius.` });
-
-  if (!args.length) return sock.sendMessage(jid, { text: 'Give me a description!' });
+  const text = args.join(' ');
+  const sender = msg.key.participant || msg.key.remoteJid;
+  if (!(await isAdmin(sock, jid, sender)))
+    return sock.sendMessage(jid, { text: `🚷 You can't set description.` });
+  if (!text)
+    return sock.sendMessage(jid, { text: `📝 Usage: *.setdesc New group description*` });
 
   try {
-    await sock.groupUpdateDescription(jid, args.join(' '));
-    await sock.sendMessage(jid, { text: '✏️ Description updated!' });
+    await sock.groupUpdateDescription(jid, text);
+    await sock.sendMessage(jid, { text: `✏️ Group description updated!` });
   } catch {
-    await sock.sendMessage(jid, { text: `❌ Couldn't set description.` });
+    await sock.sendMessage(jid, { text: `❌ Couldn't update group description.` });
   }
 }
 
-/**
- * Set group subject
- */
+// .setsubject
 export async function setsubject(sock, msg, args) {
   const jid = msg.key.remoteJid;
-  if (!(await isAdmin(sock, jid, msg.key.participant || msg.key.remoteJid)))
-    return sock.sendMessage(jid, { text: `Nice try, but you're not admin.` });
-
-  if (!args.length) return sock.sendMessage(jid, { text: 'Type in a new subject!' });
+  const text = args.join(' ');
+  const sender = msg.key.participant || msg.key.remoteJid;
+  if (!(await isAdmin(sock, jid, sender)))
+    return sock.sendMessage(jid, { text: `⚠️ You're not allowed to change the group name.` });
+  if (!text)
+    return sock.sendMessage(jid, { text: `📛 Usage: *.setsubject New Group Name*` });
 
   try {
-    await sock.groupUpdateSubject(jid, args.join(' '));
-    await sock.sendMessage(jid, { text: '📛 Group name changed!' });
+    await sock.groupUpdateSubject(jid, text);
+    await sock.sendMessage(jid, { text: `✅ Group name changed successfully.` });
   } catch {
-    await sock.sendMessage(jid, { text: `❌ Couldn't set subject.` });
+    await sock.sendMessage(jid, { text: `❌ Couldn't change group name.` });
   }
 }
 
-/**
- * Set group icon (must reply to image)
- */
-export async function seticon(sock, msg) {
+// .mute
+export async function mute(sock, msg) {
   const jid = msg.key.remoteJid;
   const sender = msg.key.participant || msg.key.remoteJid;
-
   if (!(await isAdmin(sock, jid, sender)))
-    return sock.sendMessage(jid, { text: `You're not admin, chill.` });
-
-  const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-
-  if (!quoted?.imageMessage)
-    return sock.sendMessage(jid, { text: 'Reply to an image to set as group icon!' });
+    return sock.sendMessage(jid, { text: `🔕 Admins only can mute the group.` });
 
   try {
-    const buffer = await sock.downloadMediaMessage({ message: quoted });
-    await sock.groupUpdatePicture(jid, buffer);
-    await sock.sendMessage(jid, { text: '🖼️ Group icon updated successfully!' });
-  } catch (e) {
-    await sock.sendMessage(jid, { text: `❌ Failed to update icon.` });
+    await sock.groupSettingUpdate(jid, 'announcement');
+    await sock.sendMessage(jid, { text: `🔇 Group muted. Only admins may speak.` });
+  } catch {
+    await sock.sendMessage(jid, { text: `❌ Couldn't mute group.` });
   }
 }
 
-/**
- * Leave group
- */
-export async function leave(sock, msg) {
+// .unmute
+export async function unmute(sock, msg) {
   const jid = msg.key.remoteJid;
-  if (!(await isAdmin(sock, jid, msg.key.participant || msg.key.remoteJid)))
-    return sock.sendMessage(jid, { text: `🤨 You want me to leave, but you're not even admin?` });
+  const sender = msg.key.participant || msg.key.remoteJid;
+  if (!(await isAdmin(sock, jid, sender)))
+    return sock.sendMessage(jid, { text: `🔊 Only admins can unmute the group.` });
 
-  await sock.sendMessage(jid, { text: randomText('leave') });
-  await sock.groupLeave(jid);
+  try {
+    await sock.groupSettingUpdate(jid, 'not_announcement');
+    await sock.sendMessage(jid, { text: `🔈 Group unmuted. Everyone can speak!` });
+  } catch {
+    await sock.sendMessage(jid, { text: `❌ Couldn't unmute group.` });
+  }
+}
+
+// .role
+export async function role(sock, msg) {
+  const jid = msg.key.remoteJid;
+  const mentioned = getMentionedUsers(msg);
+  const metadata = await sock.groupMetadata(jid);
+  if (!mentioned.length)
+    return sock.sendMessage(jid, { text: `🔍 Tag someone to check their role.\nUsage: *.role @user*` });
+
+  for (let id of mentioned) {
+    const role = getUserRole(metadata, id);
+    await sock.sendMessage(jid, {
+      text: `🧾 @${id.split('@')[0]}'s Role: ${role}`,
+      mentions: [id]
+    });
+  }
+}
+
+// .tagall
+export async function tagall(sock, msg) {
+  const jid = msg.key.remoteJid;
+  const sender = msg.key.participant || msg.key.remoteJid;
+  if (!(await isAdmin(sock, jid, sender)))
+    return sock.sendMessage(jid, { text: `🫢 Only admins can tag everyone.` });
+
+  try {
+    const metadata = await sock.groupMetadata(jid);
+    const members = metadata.participants.map(p => p.id);
+    const mentions = members.map(m => m);
+    const names = mentions.map(m => `➤ @${m.split('@')[0]}`).join('\n');
+
+    await sock.sendMessage(jid, {
+      text: `📢 *TAGGING ALL MEMBERS:*\n\n${names}`,
+      mentions
+    });
+  } catch {
+    await sock.sendMessage(jid, { text: `❌ Couldn't tag everyone.` });
+  }
 }
