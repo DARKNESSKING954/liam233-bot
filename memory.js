@@ -73,3 +73,10 @@ export function setLastDaily(userId, dateStr) {
   userData[userId].lastDailyDate = dateStr;
   saveData();
 }
+
+// ✅ New export for leaderboard
+export function getAllWallets() {
+  return Object.fromEntries(
+    Object.entries(userData).map(([userId, data]) => [userId, data.coins])
+  );
+}
