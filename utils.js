@@ -17,13 +17,14 @@ export async function isAdmin(sock, msg) {
     const chatId = msg.key.remoteJid;
     const userId = msg.key.participant || msg.key.remoteJid;
     const metadata = await sock.groupMetadata(chatId);
-    if (!metadata) return false;
-    const participants = metadata.participants;
-    return participants.some(
-      (p) => p.id._serialized === userId && (p.isAdmin || p.isSuperAdmin)
+    const participants = metadata?.participants || [];
+
+    return participants.some(p =>
+      (p.id === userId || p.id._serialized === userId) &&
+      (p.admin === 'admin' || p.admin === 'superadmin')
     );
   } catch (error) {
-    console.error('Failed to check admin status:', error);
+    console.error('❌ Failed to check admin status:', error);
     return false;
   }
 }
