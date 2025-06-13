@@ -1,48 +1,171 @@
-// commands/media.js // 📽️ LiamBot Media Commands — sticker, youtube, play, lyrics
+// commands/media.js
+import axios from 'axios';
+import ytsr from 'ytsr';
+import ytdl from 'ytdl-core';
+import { exec } from 'child_process';
+import { writeFileSync, unlinkSync } from 'fs';
+import path from 'path';
+import { stickerMetadata } from '../utils.js'; // helper for sticker metadata if needed
 
-import { downloadMediaMessage } from '@whiskeysockets/baileys'; import { Sticker } from 'wa-sticker-formatter'; import ytsr from 'ytsr'; import ytdl from 'ytdl-core'; import axios from 'axios'; import fs from 'fs'; import path from 'path'; import os from 'os';
+// --- Sticker command
+export const sticker = async (sock, msg, args) => {
+  const chatId = msg.key.remoteJid;
 
-// --- .sticker [pack] [author] --- export async function sticker(sock, msg, args) { const chatId = msg.key.remoteJid; const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage || msg.message;
+  const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+  const mediaMsg = quoted ? { message: quoted, ...msg } : msg;
 
-if (!quoted.imageMessage && !quoted.videoMessage && !quoted.stickerMessage) { return sock.sendMessage(chatId, { text: '❌ Reply to an image, short video, or sticker with .sticker pack author' }); }
+  const hasMedia =
+    mediaMsg.message.imageMessage ||
+    mediaMsg.message.videoMessage ||
+    (mediaMsg.message.documentMessage &&
+      mediaMsg.message.documentMessage.mimetype === 'image/webp');
 
-if (args.length < 2) { return sock.sendMessage(chatId, { text: '❌ Usage: .sticker [pack] [author]' }); }
+  if (!hasMedia) {
+    return await sock.sendMessage(chatId, {
+      text: '❌ Please reply to an image, video (≤10s), or sticker with `.sticker pack author`',
+    });
+  }
 
-const pack = args[0]; const author = args.slice(1).join(' ');
+  if (args.length < 2) {
+    return await sock.sendMessage(chatId, {
+      text: '❌ Usage: `.sticker [packname] [author]`',
+    });
+  }
 
-const mediaBuffer = await downloadMediaMessage( { message: quoted }, 'buffer', {}, { logger: console, reuploadRequest: sock.updateMediaMessage } );
+  const media = await sock.downloadMediaMessage(mediaMsg);
+  const packname = args[0];
+  const author = args.slice(1).join(' ');
 
-const sticker = new Sticker(mediaBuffer, { pack: pack, author: author, type: quoted.videoMessage ? 'video' : 'full', });
+  await sock.sendMessage(chatId, {
+    sticker: media,
+    stickerAuthor: author,
+    stickerPackname: packname,
+  });
+};
 
-const buffer = await sticker.toBuffer(); await sock.sendMessage(chatId, { sticker: buffer }); }
+// --- YouTube video downloader (.youtube)
+export const youtube = async (sock, msg, args) => {
+  const chatId = msg.key.remoteJid;
+  if (!args.length) {
+    return await sock.sendMessage(chatId, {
+      text: '🔍 Usage: `.youtube [search keywords]`',
+    });
+  }
 
-// --- .youtube [search] --- export async function youtube(sock, msg, args) { const chatId = msg.key.remoteJid; if (!args.length) return sock.sendMessage(chatId, { text: '🔍 Usage: .youtube [search]' });
+  const query = args.join(' ');
+  const filters = await ytsr.getFilters(query);
+  const videoFilter = filters.get('Type').get('Video');
+  const search = await ytsr(videoFilter.url, { limit: 5 });
+  const video = search.items.find((v) => v.type === 'video');
 
-const query = args.join(' '); const result = (await ytsr(query, { limit: 5 })).items.find((v) => v.type === 'video'); if (!result) return sock.sendMessage(chatId, { text: '❌ No video found!' });
+  if (!video) {
+    return await sock.sendMessage(chatId, { text: `❌ No results found for "${query}".` });
+  }
 
-const videoUrl = result.url; const info = await ytdl.getInfo(videoUrl); const durationSec = parseInt(info.videoDetails.lengthSeconds); if (durationSec > 1800) return sock.sendMessage(chatId, { text: '⏳ Video is over 30 minutes. Try a shorter one!' });
+  // Ensure video is ≤ 30 min
+  const [min, sec] = (video.duration || '0:00').split(':').map(Number);
+  const totalSeconds = (min * 60) + sec;
+  if (totalSeconds > 1800) {
+    return await sock.sendMessage(chatId, {
+      text: '⚠️ That video is longer than 30 minutes. Please choose a shorter one!',
+    });
+  }
 
-const format = ytdl.chooseFormat(info.formats, { quality: '18' }); // 360p mp4 const output = path.join(os.tmpdir(), ${Date.now()}.mp4);
+  const info = await ytdl.getInfo(video.url);
+  const format = ytdl.chooseFormat(info.formats, {
+    quality: '18',
+    filter: 'audioandvideo',
+  });
 
-await new Promise((resolve, reject) => { ytdl(videoUrl, { format }) .pipe(fs.createWriteStream(output)) .on('finish', resolve) .on('error', reject); });
+  const filePath = path.join(process.cwd(), 'temp.mp4');
+  const stream = ytdl(video.url, { format });
 
-const videoBuffer = fs.readFileSync(output); fs.unlinkSync(output);
+  const file = writeFileSync(filePath, Buffer.from([]));
+  stream.pipe(file);
 
-await sock.sendMessage(chatId, { video: videoBuffer, mimetype: 'video/mp4', caption: 🎬 ${result.title}, }); }
+  stream.on('end', async () => {
+    await sock.sendMessage(chatId, {
+      video: { url: filePath },
+      mimetype: 'video/mp4',
+      caption: `🎬 ${video.title}`,
+    });
+    unlinkSync(filePath);
+  });
 
-// --- .play [song name] --- export async function play(sock, msg, args) { const chatId = msg.key.remoteJid; if (!args.length) return sock.sendMessage(chatId, { text: '🎵 Usage: .play [song name]' });
+  stream.on('error', async (err) => {
+    await sock.sendMessage(chatId, { text: `❌ Error downloading: ${err.message}` });
+  });
+};
 
-const query = args.join(' '); const result = (await ytsr(query, { limit: 5 })).items.find((v) => v.type === 'video'); if (!result) return sock.sendMessage(chatId, { text: '❌ Song not found!' });
+// --- .play (audio)
+export const play = async (sock, msg, args) => {
+  const chatId = msg.key.remoteJid;
+  if (!args.length) {
+    return await sock.sendMessage(chatId, {
+      text: '🎧 Usage: `.play [song name]`',
+    });
+  }
 
-const videoUrl = result.url; const info = await ytdl.getInfo(videoUrl); const audioFormat = ytdl.chooseFormat(info.formats, { quality: 'highestaudio' }); const output = path.join(os.tmpdir(), ${Date.now()}.mp3);
+  const query = args.join(' ');
+  const filters = await ytsr.getFilters(query);
+  const videoFilter = filters.get('Type').get('Video');
+  const search = await ytsr(videoFilter.url, { limit: 5 });
+  const video = search.items.find((v) => v.type === 'video');
 
-await new Promise((resolve, reject) => { ytdl(videoUrl, { format: audioFormat }) .pipe(fs.createWriteStream(output)) .on('finish', resolve) .on('error', reject); });
+  if (!video) {
+    return await sock.sendMessage(chatId, { text: `❌ No results for "${query}".` });
+  }
 
-const audioBuffer = fs.readFileSync(output); fs.unlinkSync(output);
+  const info = await ytdl.getInfo(video.url);
+  const format = ytdl.filterFormats(info.formats, 'audioonly')[0];
 
-await sock.sendMessage(chatId, { audio: audioBuffer, mimetype: 'audio/mpeg', ptt: false, fileName: ${result.title}.mp3, caption: 🎧 Now playing: *${result.title}*, }); }
+  const filePath = path.join(process.cwd(), 'temp.mp3');
+  const stream = ytdl(video.url, { format });
 
-// --- .lyrics [song name] --- export async function lyrics(sock, msg, args) { const chatId = msg.key.remoteJid; if (!args.length) return sock.sendMessage(chatId, { text: '🎤 Usage: .lyrics [song name]' });
+  const file = writeFileSync(filePath, Buffer.from([]));
+  stream.pipe(file);
 
-const query = args.join(' '); try { const res = await axios.get(https://api.lyrics.ovh/v1/unknown/${encodeURIComponent(query)}); if (res.data?.lyrics) { const lyrics = res.data.lyrics.length > 3900 ? res.data.lyrics.slice(0, 3900) + '\n\n[...truncated]' : res.data.lyrics; await sock.sendMessage(chatId, { text: 🎶 Lyrics for *${query}*:\n\n${lyrics}, }); } else { throw new Error('No lyrics found'); } } catch { return sock.sendMessage(chatId, { text: ❌ Lyrics not found for "${query}". Try another song!, }); } }
+  stream.on('end', async () => {
+    await sock.sendMessage(chatId, {
+      audio: { url: filePath },
+      mimetype: 'audio/mpeg',
+      ptt: false,
+    });
+    unlinkSync(filePath);
+  });
 
+  stream.on('error', async (err) => {
+    await sock.sendMessage(chatId, { text: `❌ Error playing: ${err.message}` });
+  });
+};
+
+// --- .lyrics
+export const lyrics = async (sock, msg, args) => {
+  const chatId = msg.key.remoteJid;
+  if (!args.length) {
+    return await sock.sendMessage(chatId, {
+      text: '🎶 Usage: `.lyrics [song name]`',
+    });
+  }
+
+  const query = args.join(' ');
+
+  try {
+    const res = await axios.get(`https://some-random-api.ml/lyrics?title=${encodeURIComponent(query)}`);
+    const lyrics = res.data?.lyrics;
+
+    if (!lyrics) {
+      return await sock.sendMessage(chatId, {
+        text: `❌ No lyrics found for *${query}*.`,
+      });
+    }
+
+    await sock.sendMessage(chatId, {
+      text: `🎵 *${res.data.title}* by *${res.data.author}*\n\n${lyrics}`,
+    });
+  } catch (e) {
+    await sock.sendMessage(chatId, {
+      text: `❌ Error fetching lyrics: ${e.message}`,
+    });
+  }
+};
