@@ -8,6 +8,7 @@ import path from 'path';
 import os from 'os';
 import fileType from 'file-type';
 import googleTTS from 'google-tts-api';
+import { downloadMediaMessage } from '@whiskeysockets/baileys'; // ✅ FIXED
 
 // Helper: Get temp file path
 function getTempFilePath(ext = '') {
@@ -34,7 +35,8 @@ export async function sticker(sock, msg) {
       message: quoted,
     };
 
-    const mediaBuffer = await sock.downloadMediaMessage(quotedMsg);
+    const mediaBuffer = await downloadMediaMessage(quotedMsg, 'buffer', {}, { logger: console }); // ✅ FIXED
+
     if (!mediaBuffer) {
       return await sock.sendMessage(chatId, {
         text: "⚠️ Couldn't download media. Make sure it's a valid image or short video.",
@@ -167,34 +169,12 @@ export async function play(sock, msg, args) {
   }
 }
 
-// 🐸 .meme command (backup API included)
+// 🐸 .meme command (now uses meme-api)
 export async function meme(sock, msg) {
   const chatId = msg.key.remoteJid;
   try {
-    let meme;
-    try {
-      const res = await axios.get('https://some-random-api.com/meme');
-      meme = res.data;
-      // Normalize to meme-api format
-      meme.title = meme.caption || 'Funny Meme';
-      meme.url = meme.image || meme.url;
-      meme.ups = meme.upvotes || 'unknown';
-      meme.subreddit = meme.subreddit || 'random';
-    } catch {
-      // fallback fallback
-      meme = {
-        url: 'https://i.imgur.com/j3DyPwL.jpeg',
-        title: 'Fallback Meme',
-        ups: 'unknown',
-        subreddit: 'random',
-      };
-    }
-
-    if (!meme?.url) {
-      return await sock.sendMessage(chatId, {
-        text: "❌ Couldn't fetch a meme. Try again later.",
-      });
-    }
+    const res = await axios.get('https://meme-api.com/gimme');
+    const meme = res.data;
 
     await sock.sendMessage(chatId, {
       image: { url: meme.url },
