@@ -46,7 +46,7 @@ export async function sticker(sock, msg) {
     const type = await fileType.fromBuffer(mediaBuffer);
     if (!type || (!type.mime.startsWith('image') && !type.mime.startsWith('video'))) {
       return await sock.sendMessage(chatId, {
-        text: "❌ Only images or videos under 10s allowed for sticker creation.",
+        text: "❌ Only images or short videos (under 10s) are supported for stickers.",
       });
     }
 
@@ -64,7 +64,7 @@ export async function sticker(sock, msg) {
   }
 }
 
-// 📽️ .youtube command (search & download)
+// 📽️ .youtube command
 export async function youtube(sock, msg, args) {
   const chatId = msg.key.remoteJid;
   const query = args.join(' ').trim();
@@ -116,7 +116,7 @@ export async function youtube(sock, msg, args) {
   }
 }
 
-// 🎵 .play command (search & download audio)
+// 🎵 .play command
 export async function play(sock, msg, args) {
   const chatId = msg.key.remoteJid;
   const query = args.join(' ').trim();
@@ -169,7 +169,7 @@ export async function play(sock, msg, args) {
   }
 }
 
-// 🐸 .meme command (now uses meme-api)
+// 🐸 .meme command
 export async function meme(sock, msg) {
   const chatId = msg.key.remoteJid;
   try {
@@ -189,7 +189,7 @@ export async function meme(sock, msg) {
   }
 }
 
-// 🔊 .tts command - text-to-speech
+// 🔊 .tts command
 export async function tts(sock, msg, args) {
   const chatId = msg.key.remoteJid;
   const text = args.join(' ').trim();
