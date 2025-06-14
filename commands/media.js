@@ -6,13 +6,12 @@ import os from 'os';
 import { tmpdir } from 'os';
 import { fileTypeFromBuffer } from 'file-type';
 
-// Helper: Save to temporary file
+// Helper: Get temp file path
 function getTempFilePath(ext = '') {
-  const tempFile = path.join(tmpdir(), `temp_${Date.now()}${ext}`);
-  return tempFile;
+  return path.join(tmpdir(), `temp_${Date.now()}${ext}`);
 }
 
-// Sticker Command — `.sticker`
+// 🧊 .sticker command
 export async function sticker(sock, msg) {
   try {
     const chatId = msg.key.remoteJid;
@@ -20,24 +19,24 @@ export async function sticker(sock, msg) {
 
     if (!media) {
       return sock.sendMessage(chatId, {
-        text: "❌ Send me an image, short video, or sticker to convert into a sticker!",
+        text: "🖼️ Send an image/video/sticker and reply with *.sticker* to convert it!",
       });
     }
 
     await sock.sendMessage(chatId, {
       sticker: media,
-      packname: 'Liambot',
+      packname: 'Whatsappbot Liam',
       author: 'Funny Stickers',
     });
   } catch (err) {
     console.error(err);
     return sock.sendMessage(msg.key.remoteJid, {
-      text: "⚠️ Failed to create sticker!",
+      text: "⚠️ Failed to create sticker. Try again!",
     });
   }
 }
 
-// YouTube Video Downloader — `.youtube [query]`
+// 📽️ .youtube command
 export async function youtube(sock, msg, args) {
   const chatId = msg.key.remoteJid;
   const query = args.join(' ');
@@ -53,7 +52,7 @@ export async function youtube(sock, msg, args) {
     const video = searchRes.data?.videos?.[0];
 
     if (!video || !video.url) {
-      return sock.sendMessage(chatId, { text: "❌ Couldn't find a video!" });
+      return sock.sendMessage(chatId, { text: "❌ Couldn't find any video!" });
     }
 
     if (video.duration.seconds > 1800) {
@@ -86,83 +85,22 @@ export async function youtube(sock, msg, args) {
   }
 }
 
-// Play Music from YouTube — `.play [song name]`
-export async function play(sock, msg, args) {
+// 🐸 .meme command
+export async function meme(sock, msg) {
   const chatId = msg.key.remoteJid;
-  const query = args.join(' ');
-
-  if (!query) {
-    return sock.sendMessage(chatId, {
-      text: "🎵 Usage: `.play [song name]` — I’ll send you the song as audio!",
-    });
-  }
 
   try {
-    const searchRes = await axios.get(`https://ytapi.llama.sh/search?q=${encodeURIComponent(query)}`);
-    const video = searchRes.data?.videos?.[0];
+    const response = await axios.get('https://meme-api.com/gimme');
+    const meme = response.data;
 
-    if (!video || !video.url) {
-      return sock.sendMessage(chatId, { text: "❌ Couldn't find that song!" });
-    }
-
-    const outPath = getTempFilePath('.mp3');
-    const cmd = `yt-dlp -x --audio-format mp3 -o "${outPath}" "${video.url}"`;
-
-    exec(cmd, async (err) => {
-      if (err) {
-        console.error(err);
-        return sock.sendMessage(chatId, { text: "❌ Failed to download audio with yt-dlp." });
-      }
-
-      const buffer = fs.readFileSync(outPath);
-      await sock.sendMessage(chatId, {
-        audio: buffer,
-        mimetype: 'audio/mpeg',
-        ptt: false,
-        fileName: `${video.title}.mp3`,
-        caption: `🎧 *${video.title}*`,
-      });
-
-      fs.unlinkSync(outPath);
+    await sock.sendMessage(chatId, {
+      image: { url: meme.url },
+      caption: `🤣 *${meme.title}*\n👍 ${meme.ups} | 🧵 r/${meme.subreddit}`,
     });
-  } catch (e) {
-    console.error(e);
-    return sock.sendMessage(chatId, { text: `❌ Play error: ${e.message}` });
-  }
-}
-
-// Lyrics Command — `.lyrics [song name]`
-export async function lyrics(sock, msg, args) {
-  const chatId = msg.key.remoteJid;
-  const query = args.join(' ');
-
-  if (!query) {
+  } catch (err) {
+    console.error(err);
     return sock.sendMessage(chatId, {
-      text: "📄 Usage: `.lyrics [song name]` — I’ll try to find the lyrics!",
-    });
-  }
-
-  try {
-    const res = await axios.get(`https://some-random-api.ml/lyrics?title=${encodeURIComponent(query)}`);
-    const data = res.data;
-
-    if (!data || !data.lyrics) {
-      return sock.sendMessage(chatId, {
-        text: `❌ No lyrics found for "${query}". Try another song!`,
-      });
-    }
-
-    let lyrics = data.lyrics.trim();
-    if (lyrics.length > 3900) {
-      lyrics = lyrics.slice(0, 3900) + '\n\n[...lyrics truncated]';
-    }
-
-    return sock.sendMessage(chatId, {
-      text: `🎤 *Lyrics for ${data.title || query}*:\n\n${lyrics}`,
-    });
-  } catch (e) {
-    return sock.sendMessage(chatId, {
-      text: `❌ Couldn't fetch lyrics for "${query}".`,
+      text: "⚠️ Couldn't fetch a meme. Try again later!",
     });
   }
 }
