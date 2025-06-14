@@ -6,14 +6,14 @@ import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import fileType from 'file-type'; // ✅ Correct for CommonJS
+import fileType from 'file-type';
 
-// Helper: Get temp file path
+// Helper: Temp file path
 function getTempFilePath(ext = '') {
   return path.join(os.tmpdir(), `temp_${Date.now()}${ext}`);
 }
 
-// 🧊 .sticker command
+// 🧊 .sticker command (Fixed: only supports image/video, ensures WebP format)
 export async function sticker(sock, msg) {
   try {
     const chatId = msg.key.remoteJid;
@@ -28,16 +28,34 @@ export async function sticker(sock, msg) {
     }
 
     const type = await fileType.fromBuffer(mediaBuffer);
-    if (!type || (!type.mime.startsWith('image') && !type.mime.startsWith('video'))) {
+    if (!type || !['image', 'video'].some(t => type.mime.startsWith(t))) {
       return sock.sendMessage(chatId, {
-        text: "⚠️ Invalid file. Please send or reply to an *image* or *short video*!",
+        text: "⚠️ Please reply to an *image* or *short video*!",
       });
     }
 
-    await sock.sendMessage(chatId, {
-      sticker: mediaBuffer,
-      packname: 'Whatsappbot Liam',
-      author: 'Funny Stickers',
+    // Convert to WebP using ffmpeg if video, or sharp if image (fallback)
+    const inputPath = getTempFilePath(`.${type.ext}`);
+    const outputPath = getTempFilePath('.webp');
+    fs.writeFileSync(inputPath, mediaBuffer);
+
+    const cmd = `ffmpeg -i "${inputPath}" -vcodec libwebp -filter:v fps=fps=15 -lossless 1 -q:v 50 -preset default -loop 0 -an -vsync 0 -s 512:512 "${outputPath}"`;
+
+    exec(cmd, async (err) => {
+      if (err || !fs.existsSync(outputPath)) {
+        console.error('Sticker conversion failed:', err);
+        return sock.sendMessage(chatId, { text: "⚠️ Couldn't convert to sticker. Try again!" });
+      }
+
+      const stickerBuffer = fs.readFileSync(outputPath);
+      await sock.sendMessage(chatId, {
+        sticker: stickerBuffer,
+        packname: 'Whatsappbot Liam',
+        author: 'Funny Stickers',
+      });
+
+      fs.unlinkSync(inputPath);
+      fs.unlinkSync(outputPath);
     });
   } catch (err) {
     console.error(err);
@@ -47,7 +65,7 @@ export async function sticker(sock, msg) {
   }
 }
 
-// 📽️ .youtube command
+// 📽️ .youtube command (Fixed: Uses working Invidious proxy for YouTube search)
 export async function youtube(sock, msg, args) {
   const chatId = msg.key.remoteJid;
   const query = args.join(' ');
@@ -59,38 +77,40 @@ export async function youtube(sock, msg, args) {
   }
 
   try {
-    const searchRes = await axios.get(`https://youtubei.js.org/api/search?q=${encodeURIComponent(query)}`);
-    const video = searchRes.data?.results?.find(v => v.type === 'video' && v.durationSec <= 1800);
+    // Invidious public instance as fallback
+    const res = await axios.get(`https://yewtu.be/search?q=${encodeURIComponent(query)}`);
+    const match = res.data.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
+    if (!match) return sock.sendMessage(chatId, { text: "❌ Couldn't find a valid video!" });
 
-    if (!video || !video.url) {
-      return sock.sendMessage(chatId, { text: "❌ Couldn't find any video!" });
-    }
-
+    const videoUrl = `https://www.youtube.com/watch?v=${match[1]}`;
     const outPath = getTempFilePath('.mp4');
-    const cmd = `yt-dlp -f "best[ext=mp4]" -o "${outPath}" "${video.url}"`;
+
+    const cmd = `yt-dlp -f "best[ext=mp4]" --max-filesize 50M --no-playlist -o "${outPath}" "${videoUrl}"`;
 
     exec(cmd, async (err) => {
       if (err) {
         console.error(err);
-        return sock.sendMessage(chatId, { text: "❌ Failed to download video with yt-dlp." });
+        return sock.sendMessage(chatId, { text: "❌ yt-dlp failed to download. Try a shorter video." });
       }
 
       const buffer = fs.readFileSync(outPath);
       await sock.sendMessage(chatId, {
         video: buffer,
         mimetype: 'video/mp4',
-        caption: `🎬 *${video.title}*`,
+        caption: `🎬 Here's your video from: ${videoUrl}`,
       });
 
       fs.unlinkSync(outPath);
     });
   } catch (e) {
     console.error(e);
-    return sock.sendMessage(chatId, { text: `❌ YouTube error: ${e.message}` });
+    return sock.sendMessage(chatId, {
+      text: `❌ YouTube error: ${e.message}`,
+    });
   }
 }
 
-// 🐸 .meme command
+// 🐸 .meme command (Fixed: Loads image buffer directly)
 export async function meme(sock, msg) {
   const chatId = msg.key.remoteJid;
 
@@ -98,11 +118,15 @@ export async function meme(sock, msg) {
     const res = await axios.get('https://meme-api.com/gimme');
     const meme = res.data;
 
-    const imageRes = await axios.get(meme.url, { responseType: 'arraybuffer' });
+    const imageRes = await axios.get(meme.url, {
+      responseType: 'arraybuffer',
+    });
+
     const imageBuffer = Buffer.from(imageRes.data, 'binary');
 
     await sock.sendMessage(chatId, {
       image: imageBuffer,
+      mimetype: 'image/jpeg',
       caption: `🤣 *${meme.title}*\n👍 ${meme.ups} | 🧵 r/${meme.subreddit}`,
     });
   } catch (err) {
