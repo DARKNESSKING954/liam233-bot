@@ -16,8 +16,11 @@ export const menu = () => `
 
 📊 *Top Commands* — Manage your coins and status:
 • .leaderboard  — See top 5 richest players on the bot
+
 • .wallet       — Check your coin balance and assets
+
 • .daily        — Claim your daily coin reward (once per day)
+
 • .give <@user> — Transfer coins to another user
 
 🧠 *Emotions*
