@@ -22,11 +22,16 @@ for (const file of commandFiles) {
   const filePath = path.join(__dirname, 'commands', file);
   const commandModule = await import(`file://${filePath}`);
 
-  // Support both default exports (object) and named exports
-  const cmds = commandModule.default || commandModule;
-
-  for (const [commandName, commandFunc] of Object.entries(cmds)) {
-    commands[commandName.toLowerCase()] = commandFunc;
+  // If default export is a function, register it as the command with the filename (without .js)
+  if (typeof commandModule.default === 'function') {
+    const commandName = file.replace('.js', '').toLowerCase();
+    commands[commandName] = commandModule.default;
+  } else {
+    // Otherwise, expect an object with multiple commands
+    const cmds = commandModule.default || commandModule;
+    for (const [commandName, commandFunc] of Object.entries(cmds)) {
+      commands[commandName.toLowerCase()] = commandFunc;
+    }
   }
 }
 console.log(`✅ Loaded ${Object.keys(commands).length} commands.`);
