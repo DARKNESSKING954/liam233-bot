@@ -21,7 +21,7 @@ export const menu = () => `
 
 • .daily        — Claim your daily coin reward (once per day)
 
-• .give <@user> — Transfer coins to another user
+• .give <@user> <amount> — Transfer coins to another user
 
 🧠 *Emotions*
 • .kiss
