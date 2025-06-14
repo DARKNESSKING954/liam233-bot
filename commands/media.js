@@ -1,30 +1,41 @@
+// commands/media.js
+// 🎬 LiamBot Media Commands
+
 import axios from 'axios';
 import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { tmpdir } from 'os';
-import { fileTypeFromBuffer } from 'file-type';
+import fileType from 'file-type'; // ✅ Use default import for CommonJS module
 
 // Helper: Get temp file path
 function getTempFilePath(ext = '') {
-  return path.join(tmpdir(), `temp_${Date.now()}${ext}`);
+  return path.join(os.tmpdir(), `temp_${Date.now()}${ext}`);
 }
 
 // 🧊 .sticker command
 export async function sticker(sock, msg) {
   try {
     const chatId = msg.key.remoteJid;
-    const media = await sock.downloadMediaMessage(msg);
+    const quoted = msg.message?.extendedTextMessage?.contextInfo;
+    const mediaMsg = quoted?.quotedMessage ? { ...msg, message: quoted.quotedMessage } : msg;
 
-    if (!media) {
+    const mediaBuffer = await sock.downloadMediaMessage(mediaMsg);
+    if (!mediaBuffer) {
       return sock.sendMessage(chatId, {
-        text: "🖼️ Send an image/video/sticker and reply with *.sticker* to convert it!",
+        text: "🖼️ Send or reply to an image/video/sticker with *.sticker* to convert it!",
+      });
+    }
+
+    const type = await fileType.fromBuffer(mediaBuffer);
+    if (!type || !['image', 'video'].some(t => type.mime.startsWith(t))) {
+      return sock.sendMessage(chatId, {
+        text: "⚠️ Invalid media. Please send or reply to an *image* or *short video*!",
       });
     }
 
     await sock.sendMessage(chatId, {
-      sticker: media,
+      sticker: mediaBuffer,
       packname: 'Whatsappbot Liam',
       author: 'Funny Stickers',
     });
