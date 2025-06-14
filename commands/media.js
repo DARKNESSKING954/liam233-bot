@@ -35,7 +35,7 @@ export async function sticker(sock, msg) {
       message: quoted,
     };
 
-    const mediaBuffer = await downloadMediaMessage(quotedMsg, 'buffer', {}, { logger: console }); // ✅ FIXED
+    const mediaBuffer = await downloadMediaMessage(quotedMsg, 'buffer', {}, { logger: console });
 
     if (!mediaBuffer) {
       return await sock.sendMessage(chatId, {
