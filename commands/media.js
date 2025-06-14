@@ -1,233 +1,148 @@
-// commands/media.js
-// 🎬 LiamBot Media Commands
+// commands/media.js // 🎬 LiamBot Media Commands
 
-import axios from 'axios';
-import { exec } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import fileType from 'file-type';
-import googleTTS from 'google-tts-api';
+import axios from 'axios'; import { exec } from 'child_process'; import fs from 'fs'; import path from 'path'; import os from 'os'; import fileType from 'file-type'; import googleTTS from 'google-tts-api';
 
-// Helper: Get temp file path
-function getTempFilePath(ext = '') {
-  return path.join(os.tmpdir(), `liambot_${Date.now()}${ext}`);
+// Helper: Get temp file path function getTempFilePath(ext = '') { return path.join(os.tmpdir(), liambot_${Date.now()}${ext}); }
+
+// 🧊 .sticker command export async function sticker(sock, msg) { const chatId = msg.key.remoteJid; try { const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage; if (!quoted) { return sock.sendMessage(chatId, { text: "🖼️ Sticker Maker\n_Reply to an image or short video with .sticker_ to create a cool sticker!", }); }
+
+const quotedMsg = {
+  key: {
+    remoteJid: chatId,
+    id: msg.message?.extendedTextMessage?.contextInfo?.stanzaId,
+    participant: msg.message?.extendedTextMessage?.contextInfo?.participant,
+  },
+  message: quoted,
+};
+
+const mediaBuffer = await sock.downloadMediaMessage(quotedMsg);
+if (!mediaBuffer) {
+  return sock.sendMessage(chatId, {
+    text: "⚠️ Couldn't download media. Make sure it's a valid image or short video.",
+  });
 }
 
-// 🧊 .sticker command
-export async function sticker(sock, msg) {
-  const chatId = msg.key.remoteJid;
-  try {
-    const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-    if (!quoted) {
-      return sock.sendMessage(chatId, {
-        text: "🖼️ Sticker Maker\n_Reply to an image or short video with .sticker_ to create a cool sticker!",
-      });
-    }
+const type = await fileType.fromBuffer(mediaBuffer);
+if (!type || (!type.mime.startsWith('image') && !type.mime.startsWith('video'))) {
+  return sock.sendMessage(chatId, {
+    text: "❌ Only images or videos under 10s allowed for sticker creation.",
+  });
+}
 
-    const mediaBuffer = await sock.downloadMediaMessage({ message: quoted });
-    if (!mediaBuffer) {
-      return sock.sendMessage(chatId, {
-        text: "⚠️ Couldn't download media. Make sure it's a valid image or short video.",
-      });
-    }
+await sock.sendMessage(chatId, {
+  sticker: mediaBuffer,
+  packname: 'Liambot',
+  author: 'Funny Stickers',
+});
 
-    const type = await fileType.fromBuffer(mediaBuffer);
-    if (!type || (!type.mime.startsWith('image') && !type.mime.startsWith('video'))) {
-      return sock.sendMessage(chatId, {
-        text: "❌ Only images or videos under 10s allowed for sticker creation.",
-      });
-    }
+} catch (err) { console.error(err); await sock.sendMessage(chatId, { text: "❌ Error creating sticker. Try again with a valid image/video.", }); } }
 
-    await sock.sendMessage(chatId, {
-      sticker: mediaBuffer,
-      packname: 'Liambot',
-      author: 'Funny Stickers',
-    });
+// 📽️ .youtube command (search & download) export async function youtube(sock, msg, args) { const chatId = msg.key.remoteJid; const query = args.join(' ').trim();
 
-  } catch (err) {
+if (!query) { return sock.sendMessage(chatId, { text: "📽️ YouTube Downloader\nUsage: .youtube [search or link]", }); }
+
+const outPath = getTempFilePath('.mp4'); const searchParam = query.includes('http') ? query : ytsearch1:${query};
+
+const cmd = yt-dlp -f "best[ext=mp4]" --write-thumbnail --write-info-json -o "${outPath}" "${searchParam}";
+
+try { await sock.sendMessage(chatId, { text: "📥 Downloading video, please wait..." });
+
+exec(cmd, async (err) => {
+  if (err || !fs.existsSync(outPath)) {
     console.error(err);
-    await sock.sendMessage(chatId, {
-      text: "❌ Error creating sticker. Try again with a valid image/video.",
-    });
-  }
-}
-
-// 📽️ .youtube command with search, no limits, thumbnail, and title
-export async function youtube(sock, msg, args) {
-  const chatId = msg.key.remoteJid;
-  const query = args.join(' ').trim();
-
-  if (!query) {
     return sock.sendMessage(chatId, {
-      text: "📽️ YouTube Downloader\nUsage: .youtube [keywords or link]\n_Example:_ .youtube Liam is cool",
+      text: "❌ Download failed. Try another video or search keyword.",
     });
   }
 
-  const outPath = getTempFilePath('.mp4');
-  const ytQuery = query.includes('youtu.be') || query.includes('youtube.com') ? query : `ytsearch1:${query}`;
-  const infoCmd = `yt-dlp --print "title\nthumbnail" "${ytQuery}"`;
-  const downloadCmd = `yt-dlp -f "best[ext=mp4]" -o "${outPath}" "${ytQuery}"`;
+  const jsonPath = outPath.replace('.mp4', '.info.json');
+  const jsonData = fs.existsSync(jsonPath) ? JSON.parse(fs.readFileSync(jsonPath)) : {};
+  const title = jsonData.title || 'Unknown Title';
+  const thumbnail = fs.existsSync(outPath + '.webp') ? fs.readFileSync(outPath + '.webp') : null;
 
-  try {
-    await sock.sendMessage(chatId, { text: `🔍 Searching YouTube for: *${query}*\n⏳ Please wait...` });
+  const videoBuffer = fs.readFileSync(outPath);
+  await sock.sendMessage(chatId, {
+    video: videoBuffer,
+    mimetype: 'video/mp4',
+    caption: `🎬 ${title}`,
+    ...(thumbnail && { jpegThumbnail: thumbnail })
+  });
 
-    exec(infoCmd, async (infoErr, stdout) => {
-      if (infoErr) return sock.sendMessage(chatId, { text: "❌ Failed to fetch video info." });
+  fs.unlinkSync(outPath);
+  if (fs.existsSync(jsonPath)) fs.unlinkSync(jsonPath);
+  if (fs.existsSync(outPath + '.webp')) fs.unlinkSync(outPath + '.webp');
+});
 
-      const [title, thumbnail] = stdout.trim().split('\n');
+} catch (e) { console.error(e); sock.sendMessage(chatId, { text: ❌ Error: ${e.message} }); } }
 
-      exec(downloadCmd, async (err) => {
-        if (err || !fs.existsSync(outPath)) {
-          console.error(err);
-          return sock.sendMessage(chatId, {
-            text: "❌ Download failed. Try a different search or link.",
-          });
-        }
+// 🎵 .play command (search & download) export async function play(sock, msg, args) { const chatId = msg.key.remoteJid; const query = args.join(' ').trim();
 
-        const videoBuffer = fs.readFileSync(outPath);
-        await sock.sendMessage(chatId, {
-          image: { url: thumbnail },
-          caption: `🎞️ *${title}*\n🎬 Downloaded from YouTube\n⏳ Sending video...`,
-        });
-        await sock.sendMessage(chatId, {
-          video: videoBuffer,
-          mimetype: 'video/mp4',
-          caption: `🎬 ${title}`,
-        });
+if (!query) { return sock.sendMessage(chatId, { text: "🎶 Play Music\nUsage: .play [song or link]\n_Example:_ .play Blinding Lights", }); }
 
-        fs.unlinkSync(outPath);
-      });
-    });
+const outPath = getTempFilePath('.mp3'); const cmd = yt-dlp -x --audio-format mp3 --write-info-json --write-thumbnail -o "${outPath}" "ytsearch1:${query}";
 
-  } catch (e) {
-    console.error(e);
-    sock.sendMessage(chatId, {
-      text: `❌ Error: ${e.message}`,
-    });
-  }
-}
+try { await sock.sendMessage(chatId, { text: "🎧 Fetching your song..." });
 
-// 🎵 .play command with title and thumbnail
-export async function play(sock, msg, args) {
-  const chatId = msg.key.remoteJid;
-  const query = args.join(' ').trim();
-
-  if (!query) {
-    return sock.sendMessage(chatId, {
-      text: "🎶 Play Music\nUsage: .play [song or link]\n_Example:_ .play Blinding Lights",
-    });
-  }
-
-  const outPath = getTempFilePath('.mp3');
-  const ytQuery = query.includes('youtube.com') || query.includes('youtu.be') ? query : `ytsearch1:${query}`;
-  const infoCmd = `yt-dlp --print "title\nthumbnail" "${ytQuery}"`;
-  const cmd = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${outPath}" "${ytQuery}"`;
-
-  try {
-    await sock.sendMessage(chatId, { text: `🔎 Searching and downloading: *${query}*` });
-
-    exec(infoCmd, async (infoErr, stdout) => {
-      if (infoErr) return sock.sendMessage(chatId, { text: "❌ Couldn't fetch song info." });
-
-      const [title, thumbnail] = stdout.trim().split('\n');
-
-      exec(cmd, async (err) => {
-        if (err || !fs.existsSync(outPath)) {
-          console.error(err);
-          return sock.sendMessage(chatId, {
-            text: "❌ Couldn't fetch audio. Try a different song or link.",
-          });
-        }
-
-        const audio = fs.readFileSync(outPath);
-        await sock.sendMessage(chatId, {
-          image: { url: thumbnail },
-          caption: `🎵 *${title}*\n🎧 Enjoy your track!`,
-        });
-        await sock.sendMessage(chatId, {
-          audio,
-          mimetype: 'audio/mpeg',
-          ptt: false,
-          fileName: 'song.mp3',
-        });
-
-        fs.unlinkSync(outPath);
-      });
-    });
-
-  } catch (e) {
-    console.error(e);
-    sock.sendMessage(chatId, {
-      text: `❌ Error: ${e.message}`,
-    });
-  }
-}
-
-// 🐸 .meme command with backup API
-export async function meme(sock, msg) {
-  const chatId = msg.key.remoteJid;
-  try {
-    let meme;
-    try {
-      const res = await axios.get('https://meme-api.com/gimme');
-      meme = res.data;
-    } catch {
-      const res = await axios.get('https://meme-api.herokuapp.com/gimme');
-      meme = res.data.meme || res.data;
-    }
-
-    if (!meme?.url) {
-      return sock.sendMessage(chatId, {
-        text: "❌ Couldn't fetch a meme. Try again later.",
-      });
-    }
-
-    await sock.sendMessage(chatId, {
-      image: { url: meme.url },
-      caption: `🤣 *${meme.title || 'Random Meme'}*\n👍 ${meme.ups || ''} | r/${meme.subreddit || 'memes'}`,
-    });
-
-  } catch (err) {
+exec(cmd, async (err) => {
+  if (err || !fs.existsSync(outPath)) {
     console.error(err);
-    sock.sendMessage(chatId, {
-      text: "😓 Meme gods are asleep. Try again in a bit!",
-    });
-  }
-}
-
-// 🔊 .tts command - text-to-speech
-export async function tts(sock, msg, args) {
-  const chatId = msg.key.remoteJid;
-  const text = args.join(' ').trim();
-
-  if (!text) {
     return sock.sendMessage(chatId, {
-      text: "🔊 Text-to-Speech\nUsage: .tts Hello world\nSupported language: English only",
+      text: "❌ Couldn't fetch audio. Try a different song or check the link.",
     });
   }
 
-  try {
-    const url = googleTTS.getAudioUrl(text, {
-      lang: 'en',
-      slow: false,
-      host: 'https://translate.google.com',
-    });
+  const jsonPath = outPath.replace('.mp3', '.info.json');
+  const jsonData = fs.existsSync(jsonPath) ? JSON.parse(fs.readFileSync(jsonPath)) : {};
+  const title = jsonData.title || query;
+  const thumbnail = fs.existsSync(outPath + '.webp') ? fs.readFileSync(outPath + '.webp') : null;
 
-    const audio = (await axios.get(url, { responseType: 'arraybuffer' })).data;
+  const audio = fs.readFileSync(outPath);
+  await sock.sendMessage(chatId, {
+    audio,
+    mimetype: 'audio/mpeg',
+    ptt: false,
+    fileName: 'song.mp3',
+    caption: `🎵 ${title}`,
+    ...(thumbnail && { jpegThumbnail: thumbnail })
+  });
 
-    await sock.sendMessage(chatId, {
-      audio,
-      mimetype: 'audio/mpeg',
-      ptt: false,
-      fileName: 'tts.mp3',
-      caption: '🗣️ Here you go!',
-    });
+  fs.unlinkSync(outPath);
+  if (fs.existsSync(jsonPath)) fs.unlinkSync(jsonPath);
+  if (fs.existsSync(outPath + '.webp')) fs.unlinkSync(outPath + '.webp');
+});
 
-  } catch (err) {
-    console.error(err);
-    sock.sendMessage(chatId, {
-      text: "❌ Failed to generate speech. Try again later.",
-    });
-  }
+} catch (e) { console.error(e); sock.sendMessage(chatId, { text: ❌ Error: ${e.message} }); } }
+
+// 🐸 .meme command (backup API included) export async function meme(sock, msg) { const chatId = msg.key.remoteJid; try { let meme; try { const res = await axios.get('https://meme-api.com/gimme'); meme = res.data; } catch { const fallback = await axios.get('https://some-random-api.com/meme'); meme = fallback.data; meme.title = meme.caption; meme.ups = 'unknown'; meme.subreddit = 'random'; }
+
+if (!meme?.url) {
+  return sock.sendMessage(chatId, {
+    text: "❌ Couldn't fetch a meme. Try again later.",
+  });
 }
+
+await sock.sendMessage(chatId, {
+  image: { url: meme.url },
+  caption: `🤣 *${meme.title}*\n👍 ${meme.ups} | r/${meme.subreddit}`,
+});
+
+} catch (err) { console.error(err); sock.sendMessage(chatId, { text: "😓 Meme gods are asleep. Try again in a bit!", }); } }
+
+// 🔊 .tts command - text-to-speech export async function tts(sock, msg, args) { const chatId = msg.key.remoteJid; const text = args.join(' ').trim();
+
+if (!text) { return sock.sendMessage(chatId, { text: "🔊 Text-to-Speech\nUsage: .tts Hello world\nSupported language: English only", }); }
+
+try { const url = googleTTS.getAudioUrl(text, { lang: 'en', slow: false, host: 'https://translate.google.com', });
+
+const audio = (await axios.get(url, { responseType: 'arraybuffer' })).data;
+
+await sock.sendMessage(chatId, {
+  audio,
+  mimetype: 'audio/mpeg',
+  ptt: false,
+  fileName: 'tts.mp3',
+  caption: '🗣️ Here you go!',
+});
+
+} catch (err) { console.error(err); sock.sendMessage(chatId, { text: "❌ Failed to generate speech. Try again later.", }); } }
+
