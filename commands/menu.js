@@ -58,7 +58,7 @@ export default async function menu(sock, msg, args) {
 • .horse
 
 🎉 *Fun*
-• .8ball
+• .tts
 • .joke
 • .fact
 • .trivia
