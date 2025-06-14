@@ -6,7 +6,7 @@ import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import fileType from 'file-type'; // ✅ Use default import for CommonJS module
+import fileType from 'file-type'; // ✅ Correct for CommonJS
 
 // Helper: Get temp file path
 function getTempFilePath(ext = '') {
@@ -23,14 +23,14 @@ export async function sticker(sock, msg) {
     const mediaBuffer = await sock.downloadMediaMessage(mediaMsg);
     if (!mediaBuffer) {
       return sock.sendMessage(chatId, {
-        text: "🖼️ Send or reply to an image/video/sticker with *.sticker* to convert it!",
+        text: "🖼️ Send or reply to an image/video with *.sticker* to convert it!",
       });
     }
 
     const type = await fileType.fromBuffer(mediaBuffer);
-    if (!type || !['image', 'video'].some(t => type.mime.startsWith(t))) {
+    if (!type || (!type.mime.startsWith('image') && !type.mime.startsWith('video'))) {
       return sock.sendMessage(chatId, {
-        text: "⚠️ Invalid media. Please send or reply to an *image* or *short video*!",
+        text: "⚠️ Invalid file. Please send or reply to an *image* or *short video*!",
       });
     }
 
@@ -59,17 +59,11 @@ export async function youtube(sock, msg, args) {
   }
 
   try {
-    const searchRes = await axios.get(`https://ytapi.llama.sh/search?q=${encodeURIComponent(query)}`);
-    const video = searchRes.data?.videos?.[0];
+    const searchRes = await axios.get(`https://youtubei.js.org/api/search?q=${encodeURIComponent(query)}`);
+    const video = searchRes.data?.results?.find(v => v.type === 'video' && v.durationSec <= 1800);
 
     if (!video || !video.url) {
       return sock.sendMessage(chatId, { text: "❌ Couldn't find any video!" });
-    }
-
-    if (video.duration.seconds > 1800) {
-      return sock.sendMessage(chatId, {
-        text: "⏰ That video is longer than 30 minutes! Try a shorter one.",
-      });
     }
 
     const outPath = getTempFilePath('.mp4');
@@ -101,11 +95,14 @@ export async function meme(sock, msg) {
   const chatId = msg.key.remoteJid;
 
   try {
-    const response = await axios.get('https://meme-api.com/gimme');
-    const meme = response.data;
+    const res = await axios.get('https://meme-api.com/gimme');
+    const meme = res.data;
+
+    const imageRes = await axios.get(meme.url, { responseType: 'arraybuffer' });
+    const imageBuffer = Buffer.from(imageRes.data, 'binary');
 
     await sock.sendMessage(chatId, {
-      image: { url: meme.url },
+      image: imageBuffer,
       caption: `🤣 *${meme.title}*\n👍 ${meme.ups} | 🧵 r/${meme.subreddit}`,
     });
   } catch (err) {
