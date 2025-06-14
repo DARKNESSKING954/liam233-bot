@@ -1,7 +1,12 @@
 // commands/menu.js
 // 🤖 LiamBot WhatsApp Menu Command
 
-export const menu = () => `
+export const command = 'menu'; // optional, if your loader uses this
+
+export async function handler(sock, msg, command, args) {
+  const chatId = msg.key.remoteJid;
+
+  const menuText = `
 ╭━━━❰ *🤖 LiamBot WhatsApp Menu* ❱━━━╮
 ┃ 👤 Owner: *Liam Arendsen*
 ┃ ☎️ Contact: https://wa.me/27833098338
@@ -96,3 +101,6 @@ export const menu = () => `
 Type *.help* or *.menu* to see this menu again.
 Have fun using LiamBot! 🎉
 `;
+
+  await sock.sendMessage(chatId, { text: menuText });
+}
