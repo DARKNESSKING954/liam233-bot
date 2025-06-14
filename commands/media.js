@@ -2,7 +2,7 @@
 // 🎬 LiamBot Media Commands
 
 import axios from 'axios';
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -15,7 +15,7 @@ function getTempFilePath(ext = '') {
   return path.join(os.tmpdir(), `liambot_${Date.now()}${ext}`);
 }
 
-// 🧊 .sticker command
+// 🧊 .sticker command (Fixed for WhatsApp-compatible .webp)
 export async function sticker(sock, msg) {
   const chatId = msg.key.remoteJid;
   try {
@@ -50,16 +50,32 @@ export async function sticker(sock, msg) {
       });
     }
 
+    const inputPath = getTempFilePath(`.${type.ext}`);
+    const outputPath = getTempFilePath('.webp');
+    fs.writeFileSync(inputPath, mediaBuffer);
+
+    const isVideo = type.mime.startsWith('video');
+
+    const ffmpegCmd = isVideo
+      ? `ffmpeg -i "${inputPath}" -vf "scale=512:512:force_original_aspect_ratio=decrease,fps=15" -ss 0 -t 10 -loop 0 -preset default -an -vsync 0 -s 512:512 "${outputPath}"`
+      : `ffmpeg -i "${inputPath}" -vf "scale=512:512:force_original_aspect_ratio=decrease" -vcodec libwebp -lossless 1 -qscale 50 -preset default -an -vsync 0 "${outputPath}"`;
+
+    execSync(ffmpegCmd);
+
+    const sticker = fs.readFileSync(outputPath);
     await sock.sendMessage(chatId, {
-      sticker: mediaBuffer,
+      sticker,
       packname: 'Liambot',
       author: 'Funny Stickers',
     });
 
+    fs.unlinkSync(inputPath);
+    fs.unlinkSync(outputPath);
+
   } catch (err) {
     console.error(err);
     await sock.sendMessage(chatId, {
-      text: "❌ Error creating sticker. Try again with a valid image/video.",
+      text: "❌ Error creating sticker. Try again with a clear image or short video (under 10s).",
     });
   }
 }
@@ -104,7 +120,6 @@ export async function youtube(sock, msg, args) {
         ...(thumbnail && { jpegThumbnail: thumbnail }),
       });
 
-      // Cleanup
       fs.unlinkSync(outPath);
       if (fs.existsSync(jsonPath)) fs.unlinkSync(jsonPath);
       if (fs.existsSync(thumbnailPath)) fs.unlinkSync(thumbnailPath);
@@ -157,7 +172,6 @@ export async function play(sock, msg, args) {
         ...(thumbnail && { jpegThumbnail: thumbnail }),
       });
 
-      // Cleanup
       fs.unlinkSync(outPath);
       if (fs.existsSync(jsonPath)) fs.unlinkSync(jsonPath);
       if (fs.existsSync(thumbnailPath)) fs.unlinkSync(thumbnailPath);
