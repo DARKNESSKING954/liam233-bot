@@ -26,6 +26,8 @@ export default async function menu(sock, msg, args) {
 
 • .give <@user> amount — Transfer coins to another user
 
+• .horse <amount> (1-5) — Bet on a horse 
+
 🧠 *Emotions*
 • .kiss
 • .slap
