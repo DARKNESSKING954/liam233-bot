@@ -1,186 +1,114 @@
-// commands/fifashop.js
-// 📦 LiamBot FIFA Shop Commands
+// commands/fifashop.js // 📦 LiamBot FIFA Shop Commands
 
 import * as memory from '../memory.js';
 
-const fifaCards = [
-  {
-    name: "Lionel Messi",
-    price: 1000,
-    rarity: "Legendary",
-    image: "https://example.com/messi.png"
-  },
-  {
-    name: "Cristiano Ronaldo",
-    price: 950,
-    rarity: "Legendary",
-    image: "https://example.com/ronaldo.png"
-  },
-  {
-    name: "Kylian Mbappe",
-    price: 850,
-    rarity: "Epic",
-    image: "https://example.com/mbappe.png"
-  },
-  {
-    name: "Erling Haaland",
-    price: 800,
-    rarity: "Epic",
-    image: "https://example.com/haaland.png"
-  },
-  {
-    name: "Neymar Jr",
-    price: 750,
-    rarity: "Epic",
-    image: "https://example.com/neymar.png"
-  },
-  {
-    name: "Kevin De Bruyne",
-    price: 700,
-    rarity: "Epic",
-    image: "https://example.com/debruyne.png"
-  },
-  {
-    name: "Robert Lewandowski",
-    price: 700,
-    rarity: "Epic",
-    image: "https://example.com/lewa.png"
-  },
-  {
-    name: "Vinicius Jr",
-    price: 650,
-    rarity: "Rare",
-    image: "https://example.com/vini.png"
-  },
-  {
-    name: "Mohamed Salah",
-    price: 600,
-    rarity: "Rare",
-    image: "https://example.com/salah.png"
-  },
-  {
-    name: "Harry Kane",
-    price: 600,
-    rarity: "Rare",
-    image: "https://example.com/kane.png"
-  },
-  {
-    name: "Luka Modric",
-    price: 550,
-    rarity: "Rare",
-    image: "https://example.com/modric.png"
-  },
-  {
-    name: "Sadio Mane",
-    price: 500,
-    rarity: "Rare",
-    image: "https://example.com/mane.png"
-  },
-  {
-    name: "Pedri",
-    price: 480,
-    rarity: "Uncommon",
-    image: "https://example.com/pedri.png"
-  },
-  {
-    name: "Jude Bellingham",
-    price: 470,
-    rarity: "Uncommon",
-    image: "https://example.com/bellingham.png"
-  },
-  {
-    name: "Phil Foden",
-    price: 460,
-    rarity: "Uncommon",
-    image: "https://example.com/foden.png"
-  },
-  {
-    name: "Antony",
-    price: 450,
-    rarity: "Uncommon",
-    image: "https://example.com/antony.png"
-  },
-  {
-    name: "Declan Rice",
-    price: 440,
-    rarity: "Uncommon",
-    image: "https://example.com/rice.png"
-  },
-  {
-    name: "Jack Grealish",
-    price: 430,
-    rarity: "Uncommon",
-    image: "https://example.com/grealish.png"
-  },
-  {
-    name: "Angel Di Maria",
-    price: 420,
-    rarity: "Common",
-    image: "https://example.com/dimaria.png"
-  },
-  {
-    name: "Karim Benzema",
-    price: 410,
-    rarity: "Common",
-    image: "https://example.com/benzema.png"
-  }
-];
+const fifaCards = [ { name: "Lionel Messi", price: 5000, rarity: "Legendary", position: "RW", rating: 94, stats: { PAC: 85, SHO: 92, PAS: 91, DRI: 96, DEF: 38, PHY: 65 }, image: "https://example.com/messi.gif" }, { name: "Cristiano Ronaldo", price: 4800, rarity: "Legendary", position: "ST", rating: 93, stats: { PAC: 87, SHO: 93, PAS: 82, DRI: 88, DEF: 35, PHY: 77 }, image: "https://example.com/ronaldo.gif" }, // Add more player cards below... ];
 
-export default {
-  // Show FIFA Shop
-  fifashop(sock, msg) {
-    let shopText = `🏟️ *FIFA Card Shop*\n\nAvailable Players:\n\n`;
-    fifaCards.forEach(card => {
-      shopText += `• *${card.name}* — 💰 ${card.price} coins | ⭐ ${card.rarity}\n`;
-    });
-    shopText += `\nUse *.buy [player name]* to purchase a card.`;
-    sock.sendMessage(msg.key.remoteJid, { text: shopText });
-  },
+const hypeMessages = [ "🎉 The crowd goes wild!", "🔥 What a signing!", "💥 Player incoming...", "🎮 Ultimate Team just got stronger!", "⭐ FIFA card unlocked!" ];
 
-  // Buy a card by name
-  buy(sock, msg, args) {
-    if (!args.length) {
-      return sock.sendMessage(msg.key.remoteJid, { text: "Usage: .buy [player name]" });
-    }
+export default { async fifashop(sock, msg) { let shopText = `🏟️ FIFA Card Shop
 
-    const playerName = args.join(" ");
-    const card = fifaCards.find(c => c.name.toLowerCase() === playerName.toLowerCase());
+Available Players:
 
-    if (!card) {
-      return sock.sendMessage(msg.key.remoteJid, { text: `❌ Player *${playerName}* not found.` });
-    }
+; fifaCards.forEach(card => { shopText += • ${card.name} — 💰 ${card.price} coins | ⭐ ${card.rarity} | ${card.position} | 🏅 ${card.rating}\n; }); shopText += \nUse .buy [player name] to purchase a card.`; await sock.sendMessage(msg.key.remoteJid, { text: shopText }); },
 
-    const userId = msg.key.participant || msg.key.remoteJid;
-    const wallet = memory.getWallet(userId);
+async buy(sock, msg, args) { if (!args.length) return sock.sendMessage(msg.key.remoteJid, { text: "Usage: .buy [player name]" });
 
-    if (wallet < card.price) {
-      return sock.sendMessage(msg.key.remoteJid, { text: `💸 Not enough coins! You have ${wallet}, but need ${card.price}.` });
-    }
+const playerName = args.join(" ");
+const card = fifaCards.find(c => c.name.toLowerCase() === playerName.toLowerCase());
 
-    // Deduct coins and add card
-    memory.setWallet(userId, wallet - card.price);
-    memory.addCard(userId, card.name);
+if (!card) return sock.sendMessage(msg.key.remoteJid, { text: `❌ Player *${playerName}* not found.` });
 
-    sock.sendMessage(msg.key.remoteJid, {
-      image: { url: card.image },
-      caption: `✅ You bought *${card.name}*!\n💰 -${card.price} coins | ⭐ ${card.rarity}`
-    });
-  },
+const userId = msg.key.participant || msg.key.remoteJid;
+const wallet = memory.getWallet(userId);
 
-  // View your owned cards
-  mycards(sock, msg) {
-    const userId = msg.key.participant || msg.key.remoteJid;
-    const cards = memory.getCards(userId);
+if (wallet < card.price) {
+  return sock.sendMessage(msg.key.remoteJid, { text: `💸 Not enough coins! You have ${wallet}, but need ${card.price}.` });
+}
 
-    if (cards.length === 0) {
-      return sock.sendMessage(msg.key.remoteJid, { text: "📦 You don't own any FIFA cards yet. Buy some with .fifashop!" });
-    }
+memory.setWallet(userId, wallet - card.price);
+memory.addCard(userId, card.name);
 
-    let cardText = `🎴 *Your FIFA Cards:*\n\n`;
-    cards.forEach(c => {
-      cardText += `• ${c}\n`;
-    });
+for (let msgText of hypeMessages) {
+  await sock.sendMessage(msg.key.remoteJid, { text: msgText });
+  await new Promise(res => setTimeout(res, 1000));
+}
 
-    sock.sendMessage(msg.key.remoteJid, { text: cardText });
-  }
-};
+await sock.sendMessage(msg.key.remoteJid, {
+  video: { url: card.image },
+  caption: `🎴 *${card.name}* | ${card.position} | 🏅 ${card.rating}\n⭐ ${card.rarity}\n📊 PAC: ${card.stats.PAC}, SHO: ${card.stats.SHO}, PAS: ${card.stats.PAS},\nDRI: ${card.stats.DRI}, DEF: ${card.stats.DEF}, PHY: ${card.stats.PHY}\n💰 -${card.price} coins`
+});
+
+},
+
+async flex(sock, msg, args) { if (!args.length) return sock.sendMessage(msg.key.remoteJid, { text: "Usage: .flex [player name]" });
+
+const playerName = args.join(" ");
+const userId = msg.key.participant || msg.key.remoteJid;
+const ownedCards = memory.getCards(userId);
+
+if (!ownedCards.includes(playerName)) {
+  return sock.sendMessage(msg.key.remoteJid, { text: `❌ You don't own *${playerName}*.` });
+}
+
+const card = fifaCards.find(c => c.name.toLowerCase() === playerName.toLowerCase());
+
+for (let msgText of hypeMessages) {
+  await sock.sendMessage(msg.key.remoteJid, { text: `⚽ ${msgText}` });
+  await new Promise(res => setTimeout(res, 800));
+}
+
+await sock.sendMessage(msg.key.remoteJid, {
+  video: { url: card.image },
+  caption: `🎴 *${card.name}* | ${card.position} | 🏅 ${card.rating}\n⭐ ${card.rarity}\n📊 PAC: ${card.stats.PAC}, SHO: ${card.stats.SHO}, PAS: ${card.stats.PAS},\nDRI: ${card.stats.DRI}, DEF: ${card.stats.DEF}, PHY: ${card.stats.PHY}`
+});
+
+},
+
+async mycards(sock, msg) { const userId = msg.key.participant || msg.key.remoteJid; const cards = memory.getCards(userId);
+
+if (!cards.length) return sock.sendMessage(msg.key.remoteJid, { text: "📦 You don't own any FIFA cards yet. Buy some with .fifashop!" });
+
+let cardText = `🎴 *Your FIFA Cards:*
+
+; cards.forEach(name => { const card = fifaCards.find(c => c.name === name); if (card) { cardText += • ${card.name} | ${card.position} | 🏅 ${card.rating} | ⭐ ${card.rarity}\n`; } });
+
+await sock.sendMessage(msg.key.remoteJid, { text: cardText });
+
+},
+
+async sell(sock, msg, args) { if (args.length < 2 || !msg.message.extendedTextMessage?.mentionedJid?.length) { return sock.sendMessage(msg.key.remoteJid, { text: "Usage: .sell [player name] @user" }); }
+
+const playerName = args.slice(0, -1).join(" ");
+const card = fifaCards.find(c => c.name.toLowerCase() === playerName.toLowerCase());
+const targetId = msg.message.extendedTextMessage.mentionedJid[0];
+const sellerId = msg.key.participant || msg.key.remoteJid;
+
+if (!memory.getCards(sellerId).includes(card.name)) {
+  return sock.sendMessage(msg.key.remoteJid, { text: `❌ You don't own *${card.name}*.` });
+}
+
+memory.setPendingTrade(targetId, {
+  card: card.name,
+  price: card.price,
+  from: sellerId
+});
+
+await sock.sendMessage(msg.key.remoteJid, { text: `💼 Offer sent to <@${targetId.split("@")[0]}> to buy *${card.name}* for 💰 ${card.price} coins. They must reply with *.accept @${msg.pushName}*.` });
+
+},
+
+async accept(sock, msg) { const buyerId = msg.key.participant || msg.key.remoteJid; const trade = memory.getPendingTrade(buyerId); if (!trade) return sock.sendMessage(msg.key.remoteJid, { text: "❌ No pending trade found." });
+
+const buyerWallet = memory.getWallet(buyerId);
+if (buyerWallet < trade.price) return sock.sendMessage(msg.key.remoteJid, { text: `💸 Not enough coins to complete the trade.` });
+
+memory.setWallet(buyerId, buyerWallet - trade.price);
+memory.addCard(buyerId, trade.card);
+memory.removeCard(trade.from, trade.card);
+memory.clearPendingTrade(buyerId);
+
+await sock.sendMessage(msg.key.remoteJid, { text: `✅ Trade complete! You received *${trade.card}* for 💰 ${trade.price} coins.` });
+
+} };
+
