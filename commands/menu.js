@@ -17,6 +17,7 @@ export default async function menu(sock, msg, args) {
 ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
 
 📊 *Top Commands* — Manage your coins and status:
+
 • .leaderboard  — See top 5 richest players on the bot
 
 • .wallet       — Check your coin balance and assets
@@ -77,13 +78,6 @@ export default async function menu(sock, msg, args) {
 • .play
 • .youtube
 • .meme
-
-🛒 *FIFA Shop*
-• .fifashop
-• .buy [name]
-• .sell [amount] [player]
-• .flex [player]
-• .mycards
 
 🚫 *Anti-Spam*
 • .antispam
