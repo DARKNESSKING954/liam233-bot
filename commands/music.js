@@ -1,71 +1,55 @@
-// commands/music.js
-// 📦 LiamBot Music Commands (text-based for now)
+import axios from 'axios';
+import { exec } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { tmpdir } from 'os';
 
-export function play(sock, msg, args) {
-  if (!args.length) return sock.sendMessage(msg.key.remoteJid, { text: "Usage: .play [song name]" });
-  const song = args.join(" ");
-  sock.sendMessage(msg.key.remoteJid, { text: `🎶 Playing *${song}* (simulated)` });
+// Helper: Temp file path
+function getTempFilePath(ext = '') {
+  return path.join(tmpdir(), `music_${Date.now()}${ext}`);
 }
 
-export function pause(sock, msg) {
-  sock.sendMessage(msg.key.remoteJid, { text: "⏸️ Music paused." });
-}
+// 🎵 .play command
+export async function play(sock, msg, args) {
+  const chatId = msg.key.remoteJid;
+  const query = args.join(' ');
 
-export function resume(sock, msg) {
-  sock.sendMessage(msg.key.remoteJid, { text: "▶️ Music resumed." });
-}
+  if (!query) {
+    return sock.sendMessage(chatId, {
+      text: "🎵 Usage: `.play [song name]` — I’ll send you the song as an audio!",
+    });
+  }
 
-export function skip(sock, msg) {
-  sock.sendMessage(msg.key.remoteJid, { text: "⏭️ Skipped to the next track." });
-}
+  try {
+    const searchRes = await axios.get(`https://ytapi.llama.sh/search?q=${encodeURIComponent(query)}`);
+    const video = searchRes.data?.videos?.[0];
 
-export function queue(sock, msg) {
-  sock.sendMessage(msg.key.remoteJid, { text: "🎵 Current queue: [empty / simulated]" });
-}
+    if (!video || !video.url) {
+      return sock.sendMessage(chatId, { text: "❌ Couldn't find that song!" });
+    }
 
-export function stop(sock, msg) {
-  sock.sendMessage(msg.key.remoteJid, { text: "⏹️ Music stopped." });
-}
+    const outPath = getTempFilePath('.mp3');
+    const cmd = `yt-dlp -x --audio-format mp3 -o "${outPath}" "${video.url}"`;
 
-export function nowplaying(sock, msg) {
-  sock.sendMessage(msg.key.remoteJid, { text: "🎶 Now playing: [simulated song]" });
-}
+    exec(cmd, async (err) => {
+      if (err) {
+        console.error(err);
+        return sock.sendMessage(chatId, { text: "❌ Failed to download audio with yt-dlp." });
+      }
 
-export function volume(sock, msg, args) {
-  if (!args.length) return sock.sendMessage(msg.key.remoteJid, { text: "Usage: .volume [1-100]" });
-  const volume = parseInt(args[0]);
-  if (isNaN(volume) || volume < 1 || volume > 100) return sock.sendMessage(msg.key.remoteJid, { text: "Volume must be 1-100." });
-  sock.sendMessage(msg.key.remoteJid, { text: `🔊 Volume set to ${volume}%` });
-}
+      const buffer = fs.readFileSync(outPath);
+      await sock.sendMessage(chatId, {
+        audio: buffer,
+        mimetype: 'audio/mpeg',
+        ptt: false,
+        fileName: `${video.title}.mp3`,
+        caption: `🎧 *${video.title}*`,
+      });
 
-export function lyrics(sock, msg, args) {
-  if (!args.length) return sock.sendMessage(msg.key.remoteJid, { text: "Usage: .lyrics [song name]" });
-  const song = args.join(" ");
-  sock.sendMessage(msg.key.remoteJid, { text: `📜 Lyrics for *${song}* not available (simulated)` });
-}
-
-export function shuffle(sock, msg) {
-  sock.sendMessage(msg.key.remoteJid, { text: "🔀 Queue shuffled." });
-}
-
-export function repeat(sock, msg) {
-  sock.sendMessage(msg.key.remoteJid, { text: "🔁 Repeat mode toggled." });
-}
-
-export function join(sock, msg) {
-  sock.sendMessage(msg.key.remoteJid, { text: "🎶 Bot joined voice channel (simulated)" });
-}
-
-export function leave(sock, msg) {
-  sock.sendMessage(msg.key.remoteJid, { text: "👋 Left the voice channel (simulated)" });
-}
-
-export function search(sock, msg, args) {
-  if (!args.length) return sock.sendMessage(msg.key.remoteJid, { text: "Usage: .search [song name]" });
-  const song = args.join(" ");
-  sock.sendMessage(msg.key.remoteJid, { text: `🔍 Found: *${song}* (simulated result)` });
-}
-
-export function playlist(sock, msg) {
-  sock.sendMessage(msg.key.remoteJid, { text: "🎵 Playlist feature coming soon!" });
+      fs.unlinkSync(outPath);
+    });
+  } catch (e) {
+    console.error(e);
+    return sock.sendMessage(chatId, { text: `❌ Play error: ${e.message}` });
+  }
 }
