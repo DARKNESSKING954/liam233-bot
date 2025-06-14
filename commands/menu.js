@@ -1,9 +1,6 @@
 // commands/menu.js
-// 🤖 LiamBot WhatsApp Menu Command
 
-export const command = 'menu'; // optional, if your loader uses this
-
-export async function handler(sock, msg, command, args) {
+export default async function menu(sock, msg, args) {
   const chatId = msg.key.remoteJid;
 
   const menuText = `
