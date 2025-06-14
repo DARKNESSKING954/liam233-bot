@@ -183,15 +183,19 @@ export async function play(sock, msg, args) {
   }
 }
 
-// 🐸 .meme command
+// 🐸 .meme command (Fixed to buffer to avoid WhatsApp image errors)
 export async function meme(sock, msg) {
   const chatId = msg.key.remoteJid;
   try {
     const res = await axios.get('https://meme-api.com/gimme');
     const meme = res.data;
 
+    // Download image to buffer
+    const imageRes = await axios.get(meme.url, { responseType: 'arraybuffer' });
+    const buffer = imageRes.data;
+
     await sock.sendMessage(chatId, {
-      image: { url: meme.url },
+      image: buffer,
       caption: `🤣 *${meme.title}*\n👍 ${meme.ups} | r/${meme.subreddit}`,
     });
 
