@@ -36,3 +36,8 @@ export function stickerMetadata(packname = 'LiamBot', author = 'StickerMaster') 
     quality: 75,
   };
 }
+
+// ⏱️ Sleep helper to delay actions (ms = milliseconds)
+export function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
