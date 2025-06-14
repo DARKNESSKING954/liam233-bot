@@ -8,7 +8,7 @@ const DATA_FILE = path.resolve(__dirname, 'data.json');
 
 let userData = {};
 
-// Load from file
+// Load existing data
 if (fs.existsSync(DATA_FILE)) {
   try {
     const raw = fs.readFileSync(DATA_FILE, 'utf-8');
@@ -23,7 +23,7 @@ function saveData() {
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(userData, null, 2));
   } catch (err) {
-    console.error('❌ Failed to save user data:', err);
+    console.error('❌ Failed to save data:', err);
   }
 }
 
@@ -38,10 +38,14 @@ function ensureUser(userId) {
     if (!userData[userId].lastDailyDate) {
       userData[userId].lastDailyDate = '1970-01-01';
     }
+    if (!Array.isArray(userData[userId].fifaCards)) {
+      userData[userId].fifaCards = [];
+    }
   }
   saveData();
 }
 
+// 💰 Coins
 export function getWallet(userId) {
   ensureUser(userId);
   return userData[userId].coins;
@@ -63,6 +67,7 @@ export function removeCoins(userId, amount) {
   return false;
 }
 
+// 📅 Daily Rewards
 export function getLastDaily(userId) {
   ensureUser(userId);
   return userData[userId].lastDailyDate;
@@ -74,9 +79,36 @@ export function setLastDaily(userId, dateStr) {
   saveData();
 }
 
-// ✅ New export for leaderboard
+// 🏆 Leaderboard
 export function getAllWallets() {
   return Object.fromEntries(
-    Object.entries(userData).map(([userId, data]) => [userId, data.coins])
+    Object.entries(userData).map(([uid, data]) => [uid, data.coins])
   );
+}
+
+// 🎴 FIFA Card Deck
+export function addCard(userId, cardName) {
+  ensureUser(userId);
+  if (!userData[userId].fifaCards.includes(cardName)) {
+    userData[userId].fifaCards.push(cardName);
+    saveData();
+    return true;
+  }
+  return false;
+}
+
+export function getCards(userId) {
+  ensureUser(userId);
+  return userData[userId].fifaCards;
+}
+
+export function removeCard(userId, cardName) {
+  ensureUser(userId);
+  const idx = userData[userId].fifaCards.indexOf(cardName);
+  if (idx !== -1) {
+    userData[userId].fifaCards.splice(idx, 1);
+    saveData();
+    return true;
+  }
+  return false;
 }
