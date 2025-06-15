@@ -95,7 +95,7 @@ ${senderNewBalance < 500 ? '⚠️ Low balance, hustle harder!' : '💪 Keep tho
   });
 }
 
-// 🐴 HORSE (Improved Odds)
+// 🐴 HORSE (Updated Odds: 35%)
 async function horse(sock, msg, args) {
   const user = getUserId(msg);
   const from = msg.key.remoteJid;
@@ -115,7 +115,6 @@ async function horse(sock, msg, args) {
     });
   }
 
-  // Pre-race hype messages
   const hypeMessages = [
     '🏇 Get ready! The horses are at the starting gate!',
     '🔥 The crowd is hyped, the tension is building!',
@@ -137,10 +136,9 @@ async function horse(sock, msg, args) {
     const weightedAdvance = Math.random();
 
     let advance;
-    if (weightedAdvance < 0.6) {
+    if (weightedAdvance < 0.35) {
       advance = pick - 1;
     } else {
-      // Pick one of the other horses randomly
       const otherHorses = [0, 1, 2, 3, 4].filter(h => h !== pick - 1);
       advance = otherHorses[Math.floor(Math.random() * otherHorses.length)];
     }
@@ -162,7 +160,6 @@ async function horse(sock, msg, args) {
 
   const winner = winners[Math.floor(Math.random() * winners.length)];
 
-  // Post-race messages
   const postRaceMessages = [
     `🏁 The race is over! Winner: 🏇 Horse ${winner}`,
     '🎤 What a finish! The crowd is going wild!',
