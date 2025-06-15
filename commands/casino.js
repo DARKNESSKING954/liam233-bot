@@ -44,7 +44,6 @@ async function give(sock, msg, args) {
   const from = msg.key.remoteJid;
   const sender = getUserId(msg);
 
-  // Get mentioned WhatsApp IDs from the message context (actual tagged users)
   const mentionedUsers = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
 
   if (mentionedUsers.length === 0 || args.length < 2) {
@@ -53,7 +52,7 @@ async function give(sock, msg, args) {
     });
   }
 
-  const targetUser = mentionedUsers[0]; // The full WhatsApp ID of the mentioned user
+  const targetUser = mentionedUsers[0];
   const amount = parseInt(args[1]);
 
   if (isNaN(amount) || amount <= 0) {
@@ -96,7 +95,7 @@ ${senderNewBalance < 500 ? '⚠️ Low balance, hustle harder!' : '💪 Keep tho
   });
 }
 
-// 🐴 HORSE
+// 🐴 HORSE (Improved Odds)
 async function horse(sock, msg, args) {
   const user = getUserId(msg);
   const from = msg.key.remoteJid;
@@ -128,7 +127,17 @@ async function horse(sock, msg, args) {
   const positions = [0, 0, 0, 0, 0];
 
   for (let i = 0; i < 20; i++) {
-    const advance = Math.floor(Math.random() * 5);
+    const weightedAdvance = Math.random();
+
+    let advance;
+    if (weightedAdvance < 0.6) {
+      advance = pick - 1;
+    } else {
+      // Pick one of the other horses randomly
+      const otherHorses = [0, 1, 2, 3, 4].filter(h => h !== pick - 1);
+      advance = otherHorses[Math.floor(Math.random() * otherHorses.length)];
+    }
+
     positions[advance]++;
     const raceVisual = positions
       .map((pos, idx) => '─'.repeat(pos) + `🏇 Horse ${idx + 1}`)
