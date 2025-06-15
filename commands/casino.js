@@ -95,7 +95,7 @@ ${senderNewBalance < 500 ? '⚠️ Low balance, hustle harder!' : '💪 Keep tho
   });
 }
 
-// 🐴 HORSE (Updated Odds: 35%)
+// 🐴 HORSE (Tougher Odds ~25%)
 async function horse(sock, msg, args) {
   const user = getUserId(msg);
   const from = msg.key.remoteJid;
@@ -136,7 +136,7 @@ async function horse(sock, msg, args) {
     const weightedAdvance = Math.random();
 
     let advance;
-    if (weightedAdvance < 0.35) {
+    if (weightedAdvance < 0.25) {
       advance = pick - 1;
     } else {
       const otherHorses = [0, 1, 2, 3, 4].filter(h => h !== pick - 1);
