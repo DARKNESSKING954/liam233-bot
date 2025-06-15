@@ -115,12 +115,19 @@ async function horse(sock, msg, args) {
     });
   }
 
-  await sock.sendMessage(from, { text: '🏇 Horses are warming up!' });
-  await sleep(1000);
-  await sock.sendMessage(from, { text: '🐴 Stretching legs on the track...' });
-  await sleep(1000);
-  await sock.sendMessage(from, { text: '📢 Crowd is roaring! Place your bets!' });
-  await sleep(1000);
+  // Pre-race hype messages
+  const hypeMessages = [
+    '🏇 Get ready! The horses are at the starting gate!',
+    '🔥 The crowd is hyped, the tension is building!',
+    '🎯 Which horse will claim victory today? Place your bets!',
+    '⚡ The energy is electric! This race will be unforgettable!',
+  ];
+
+  for (const msgText of hypeMessages) {
+    await sock.sendMessage(from, { text: msgText });
+    await sleep(1000);
+  }
+
   await sock.sendMessage(from, { text: '🏁 The race begins!' });
   await sleep(1000);
 
@@ -155,15 +162,18 @@ async function horse(sock, msg, args) {
 
   const winner = winners[Math.floor(Math.random() * winners.length)];
 
-  await sock.sendMessage(from, {
-    text: `🏁 The race is over! Winner: 🏇 Horse ${winner}`,
-  });
+  // Post-race messages
+  const postRaceMessages = [
+    `🏁 The race is over! Winner: 🏇 Horse ${winner}`,
+    '🎤 What a finish! The crowd is going wild!',
+    '📦 Counting the coins...',
+    "📣 Let's reveal the result...",
+  ];
 
-  await sock.sendMessage(from, { text: `🎤 What a finish! The crowd is going wild!` });
-  await sleep(700);
-  await sock.sendMessage(from, { text: `📦 Counting the coins...` });
-  await sleep(700);
-  await sock.sendMessage(from, { text: `📣 Let's reveal the result...` });
+  for (const msgText of postRaceMessages) {
+    await sock.sendMessage(from, { text: msgText });
+    await sleep(700);
+  }
 
   if (pick === winner) {
     addCoins(user, bet * 2);
