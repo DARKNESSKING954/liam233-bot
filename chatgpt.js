@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 
 // ✅ Replace with your real sk-proj key and project ID:
 const OPENAI_API_KEY = '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';
-const OPENAI_PROJECT_ID = 'proj_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; // Replace with your actual project ID
+const OPENAI_PROJECT_ID = 'proj_Fty7GPjjV5rx69cCqF1PmmdY'; // Replace with your actual project ID
 
 export async function askChatGPT(userMessage) {
   try {
