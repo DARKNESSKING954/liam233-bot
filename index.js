@@ -7,27 +7,24 @@ import path from 'path';
 import QRCode from 'qrcode';
 import { fileURLToPath } from 'url';
 import { Boom } from '@hapi/boom';
-import { exec } from 'child_process';  // <-- For opening QR image
+import { exec } from 'child_process';
+import { askChatGPT } from './chatgpt.js'; // 🧠 ChatGPT integration
 
-// 🛣️ Directory path helpers
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 📦 Command storage
 const commands = {};
+const chatgptToggle = {}; // 🧠 Track ChatGPT toggle per chat
 
-// 🔄 Dynamically load all command modules from /commands folder
+// 🔄 Load all command modules
 const commandFiles = fs.readdirSync(path.join(__dirname, 'commands')).filter(file => file.endsWith('.js'));
 for (const file of commandFiles) {
   const filePath = path.join(__dirname, 'commands', file);
   const commandModule = await import(`file://${filePath}`);
-
-  // If default export is a function, register it as the command with the filename (without .js)
   if (typeof commandModule.default === 'function') {
     const commandName = file.replace('.js', '').toLowerCase();
     commands[commandName] = commandModule.default;
   } else {
-    // Otherwise, expect an object with multiple commands
     const cmds = commandModule.default || commandModule;
     for (const [commandName, commandFunc] of Object.entries(cmds)) {
       commands[commandName.toLowerCase()] = commandFunc;
@@ -36,7 +33,6 @@ for (const file of commandFiles) {
 }
 console.log(`✅ Loaded ${Object.keys(commands).length} commands.`);
 
-// 📞 Initialize WhatsApp socket connection
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth');
   const sock = makeWASocket({
@@ -53,24 +49,14 @@ async function startBot() {
 
     if (qr) {
       try {
-        // Save QR code as a PNG file (smaller size)
-        await QRCode.toFile('qr.png', qr, {
-          width: 300,
-          margin: 2,
-        });
-        console.log('QR code saved to qr.png. Please open this image and scan it with WhatsApp.');
-
-        // Automatically open the QR image depending on your OS
+        await QRCode.toFile('qr.png', qr, { width: 300, margin: 2 });
+        console.log('QR code saved to qr.png. Scan with WhatsApp.');
         const platform = process.platform;
-        if (platform === 'win32') {
-          exec('start qr.png');
-        } else if (platform === 'darwin') {
-          exec('open qr.png');
-        } else if (platform === 'linux') {
-          exec('xdg-open qr.png');
-        }
+        if (platform === 'win32') exec('start qr.png');
+        else if (platform === 'darwin') exec('open qr.png');
+        else if (platform === 'linux') exec('xdg-open qr.png');
       } catch (e) {
-        console.error('Error generating QR code file:', e);
+        console.error('Error generating QR code:', e);
       }
     }
 
@@ -78,7 +64,6 @@ async function startBot() {
       const shouldReconnect = (lastDisconnect?.error instanceof Boom)
         ? lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut
         : true;
-
       console.log('Connection closed, reconnecting?', shouldReconnect);
       if (shouldReconnect) startBot();
     } else if (connection === 'open') {
@@ -91,15 +76,7 @@ async function startBot() {
     if (!msg.message) return;
 
     const from = msg.key.remoteJid;
-
-    // *** Run handleMessage() for all messages to catch anti-spam, anti-sticker, etc. ***
-    if (commands.handlemessage || commands.handleMessage) {
-      try {
-        await (commands.handlemessage || commands.handleMessage)(sock, msg);
-      } catch (err) {
-        console.error('❌ Error in handleMessage:', err);
-      }
-    }
+    const isGroup = from.endsWith('@g.us');
 
     const body =
       msg.message.conversation ||
@@ -108,17 +85,45 @@ async function startBot() {
       "";
 
     const prefix = '.';
-    if (!body.startsWith(prefix)) return;
-
     const args = body.slice(prefix.length).trim().split(/ +/);
-    const commandName = args.shift().toLowerCase();
+    const commandName = args.shift()?.toLowerCase();
 
-    if (commands[commandName]) {
+    // 🌐 Handle ChatGPT toggle command
+    if (body.startsWith(prefix) && (commandName === 'chatgpt')) {
+      const sub = args[0]?.toLowerCase();
+      if (sub === 'on') {
+        chatgptToggle[from] = true;
+        await sock.sendMessage(from, { text: '🤖 ChatGPT is now ON for this chat.' });
+      } else if (sub === 'off') {
+        chatgptToggle[from] = false;
+        await sock.sendMessage(from, { text: '🛑 ChatGPT is now OFF for this chat.' });
+      } else {
+        await sock.sendMessage(from, { text: '⚙️ Use `.chatgpt on` or `.chatgpt off`' });
+      }
+      return;
+    }
+
+    // 🧠 Handle other commands
+    if (body.startsWith(prefix)) {
+      if (commands[commandName]) {
+        try {
+          await commands[commandName](sock, msg, args);
+        } catch (err) {
+          console.error(`❌ Error running command ${commandName}:`, err);
+          await sock.sendMessage(from, { text: `❌ Error running command: ${commandName}` });
+        }
+      }
+      return;
+    }
+
+    // 💬 Handle normal text with ChatGPT (if toggled on)
+    if (chatgptToggle[from]) {
       try {
-        await commands[commandName](sock, msg, args);
+        const reply = await askChatGPT(body);
+        await sock.sendMessage(from, { text: reply });
       } catch (err) {
-        console.error(`❌ Error running command ${commandName}:`, err);
-        await sock.sendMessage(from, { text: `❌ Error running command: ${commandName}` });
+        console.error('❌ ChatGPT error:', err);
+        await sock.sendMessage(from, { text: '⚠️ ChatGPT failed to respond.' });
       }
     }
   });
