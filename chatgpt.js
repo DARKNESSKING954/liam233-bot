@@ -2,7 +2,7 @@
 
 import fetch from 'node-fetch';
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'YOUR_OPENAI_API_KEY';
+const OPENAI_API_KEY = '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'; // your real OpenAI API key
 
 export async function askChatGPT(userMessage) {
   try {
