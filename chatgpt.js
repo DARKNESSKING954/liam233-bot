@@ -1,10 +1,11 @@
-// 🧠 chatgpt.js — OpenAI API wrapper for sk-proj keys
+// 🧠 chatgpt.js — OpenAI API wrapper using .env
 
 import fetch from 'node-fetch';
+import dotenv from 'dotenv';
+dotenv.config(); // Load variables from .env
 
-// ✅ Replace with your real sk-proj key and project ID:
-const OPENAI_API_KEY = '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';
-const OPENAI_PROJECT_ID = 'proj_Fty7GPjjV5rx69cCqF1PmmdY'; // Replace with your actual project ID
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_PROJECT_ID = process.env.OPENAI_PROJECT_ID;
 
 export async function askChatGPT(userMessage) {
   try {
@@ -13,7 +14,7 @@ export async function askChatGPT(userMessage) {
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
-        'OpenAI-Project': OPENAI_PROJECT_ID // ✅ Required for sk-proj keys
+        'OpenAI-Project': OPENAI_PROJECT_ID
       },
       body: JSON.stringify({
         model: 'gpt-3.5-turbo',
