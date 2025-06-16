@@ -1,4 +1,4 @@
-// 🧠 chatgpt.js — OpenAI API wrapper using .env
+// 🧠 chatgpt.js — OpenAI API wrapper using .envl
 
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
